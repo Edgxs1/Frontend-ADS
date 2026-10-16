@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -14,8 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useSupabaseSession } from "@/providers/supabase-provider";
-import type { Rol } from "@/providers/supabase-provider";
+import { SelectorObra } from "@/components/layout/SelectorObra";
 
 interface Seccion {
   titulo: string;
@@ -114,7 +114,22 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-500">{usuario?.correo ?? session.user.email}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <SelectorObra />
+            <Link
+              href="/dashboard/contrato"
+              className="hidden items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 sm:inline-flex"
+            >
+              <FileSignature className="h-4 w-4" aria-hidden="true" />
+              Datos Contractuales
+            </Link>
+            <Link
+              href="/dashboard/partidas"
+              className="hidden items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 sm:inline-flex"
+            >
+              <ClipboardList className="h-4 w-4" aria-hidden="true" />
+              Partidas
+            </Link>
             {rol ? (
               <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-medium text-slate-700">
                 {rol}
