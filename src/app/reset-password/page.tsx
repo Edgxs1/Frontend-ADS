@@ -5,10 +5,10 @@ import Link from "next/link";
 import {
   AlertCircle,
   ArrowLeft,
+  Building2,
   CheckCircle2,
   Loader2,
-  Mail,
-  Send,
+  Mail
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -55,7 +55,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-sm">
         <header className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
-            <Send className="h-6 w-6" aria-hidden="true" />
+            <Building2 className="h-6 w-6" aria-hidden="true" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
             Recuperar contraseña

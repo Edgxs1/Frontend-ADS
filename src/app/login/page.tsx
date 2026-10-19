@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   AlertCircle,
+  Building2,
   Eye,
   EyeOff,
   Loader2,
   Lock,
   Mail,
-  Send,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -69,7 +69,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <header className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
-            <Send className="h-6 w-6" aria-hidden="true" />
+            <Building2 className="h-6 w-6" aria-hidden="true" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
             Obra Pública

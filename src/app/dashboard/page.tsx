@@ -12,7 +12,6 @@ import {
   FolderOpen,
   LogOut,
   Loader2,
-  Send,
   ShieldAlert,
   Users,
 } from "lucide-react";
@@ -114,7 +113,7 @@ export default function DashboardPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
-              <Send className="h-5 w-5" aria-hidden="true" />
+              <Building2 className="h-5 w-5" aria-hidden="true" />
             </div>
             <div className="leading-tight">
               <p className="text-sm font-semibold text-slate-900">Obra Pública</p>
