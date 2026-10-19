@@ -41,9 +41,8 @@ export function SelectorObra() {
         value={obraActiva?.id_obra ?? ""}
         onChange={(evento) => {
           const id = evento.target.value;
-          const obra = obras.find((o) => o.id_obra === id);
-          if (obra) {
-            seleccionarObra({ id_obra: obra.id_obra, nombre: obra.nombre });
+          if (id) {
+            seleccionarObra(id);
           }
         }}
       >

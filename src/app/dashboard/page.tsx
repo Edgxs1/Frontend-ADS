@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
+  BookOpen,
   Building2,
   ClipboardList,
   FileSignature,
+  FolderOpen,
   LogOut,
   Loader2,
   Send,
@@ -15,12 +17,15 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useSupabaseSession } from "@/providers/supabase-provider";
+import type { Rol } from "@/providers/supabase-provider";
 import { SelectorObra } from "@/components/layout/SelectorObra";
 
 interface Seccion {
   titulo: string;
   descripcion: string;
   icono: LucideIcon;
+  href?: string;
 }
 
 const SECCIONES_PORTAL: Seccion[] = [
@@ -38,17 +43,19 @@ const SECCIONES_PORTAL: Seccion[] = [
 
 const SECCIONES_POR_ROL: Record<Rol, Seccion[]> = {
   Administrador: [
-    ...SECCIONES_PORTAL,
+    {
+      titulo: "Obras",
+      descripcion: "Registra obras y administra las asignaciones de su equipo.",
+      icono: Building2,
+      href: "/dashboard/obras",
+    },
     {
       titulo: "Usuarios",
       descripcion: "Alta de usuarios y asignación de roles.",
       icono: Users,
+      href: "/dashboard/usuarios",
     },
-    {
-      titulo: "Asignaciones",
-      descripcion: "Vincula usuarios con las obras correspondientes.",
-      icono: FileSignature,
-    },
+    ...SECCIONES_PORTAL.filter((seccion) => seccion.titulo !== "Obras"),
   ],
   Superintendente: SECCIONES_PORTAL,
   Supervisor: [
@@ -130,6 +137,38 @@ export default function DashboardPage() {
               <ClipboardList className="h-4 w-4" aria-hidden="true" />
               Partidas
             </Link>
+            <Link
+              href="/dashboard/catalogos"
+              className="hidden items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 sm:inline-flex"
+            >
+              <BookOpen className="h-4 w-4" aria-hidden="true" />
+              Catálogos
+            </Link>
+            <Link
+              href="/dashboard/expediente"
+              className="hidden items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 sm:inline-flex"
+            >
+              <FolderOpen className="h-4 w-4" aria-hidden="true" />
+              Expediente
+            </Link>
+            {rol === "Administrador" ? (
+              <>
+                <Link
+                  href="/dashboard/obras"
+                  className="hidden items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 sm:inline-flex"
+                >
+                  <Building2 className="h-4 w-4" aria-hidden="true" />
+                  Obras
+                </Link>
+                <Link
+                  href="/dashboard/usuarios"
+                  className="hidden items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 sm:inline-flex"
+                >
+                  <Users className="h-4 w-4" aria-hidden="true" />
+                  Usuarios
+                </Link>
+              </>
+            ) : null}
             {rol ? (
               <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-medium text-slate-700">
                 {rol}
@@ -167,19 +206,38 @@ export default function DashboardPage() {
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {secciones.map((seccion) => {
               const Icono = seccion.icono;
+              const contenido = (
+                <>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/5 text-slate-900">
+                    <Icono className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <h2 className="mt-4 font-semibold text-slate-900">
+                    {seccion.titulo}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {seccion.descripcion}
+                  </p>
+                </>
+              );
+
+              if (seccion.href) {
+                return (
+                  <Link
+                    key={seccion.titulo}
+                    href={seccion.href}
+                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+                  >
+                    {contenido}
+                  </Link>
+                );
+              }
+
               return (
                 <div
                   key={seccion.titulo}
                   className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/5 text-slate-900">
-                    <Icono className="h-5 w-5" aria-hidden="true" />
-                  </div>
-                  <h2 className="mt-4 font-semibold text-slate-900">{seccion.titulo}</h2>
-                  <p className="mt-1 text-sm text-slate-500">{seccion.descripcion}</p>
-                  <span className="mt-4 inline-block text-xs font-medium text-slate-400">
-                    Próximamente
-                  </span>
+                  {contenido}
                 </div>
               );
             })}

@@ -10,11 +10,25 @@ export async function apiFetch(
   const token = data.session?.access_token;
 
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  if (!(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
 
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
   return fetch(`${API_URL}${path}`, { ...options, headers });
+}
+
+interface CuerpoError {
+  error?: { message?: string };
+}
+
+export async function leerMensajeError(
+  response: Response,
+  fallback: string,
+): Promise<string> {
+  const body = (await response.json().catch(() => null)) as CuerpoError | null;
+  return body?.error?.message ?? fallback;
 }

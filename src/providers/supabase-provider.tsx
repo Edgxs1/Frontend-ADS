@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { apiFetch } from "@/lib/api";
@@ -45,21 +46,28 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [usuario, setUsuario] = useState<PerfilUsuario | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingPerfil, setLoadingPerfil] = useState(false);
+  const usuarioRef = useRef<PerfilUsuario | null>(null);
 
-  const cargarPerfil = useCallback(async () => {
-    setLoadingPerfil(true);
+  const cargarPerfil = useCallback(async (mostrarLoader = true) => {
+    if (mostrarLoader && usuarioRef.current === null) {
+      setLoadingPerfil(true);
+    }
 
     try {
       const response = await apiFetch("/api/v1/usuarios/me");
 
       if (!response.ok) {
+        usuarioRef.current = null;
         setUsuario(null);
         return;
       }
 
       const body = await response.json().catch(() => null);
-      setUsuario((body?.data as PerfilUsuario) ?? null);
+      const perfil = (body?.data as PerfilUsuario) ?? null;
+      usuarioRef.current = perfil;
+      setUsuario(perfil);
     } catch {
+      usuarioRef.current = null;
       setUsuario(null);
     } finally {
       setLoadingPerfil(false);
@@ -83,14 +91,27 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         if (active) setLoading(false);
       });
 
-    const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      setLoading(false);
+    const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (event === "SIGNED_IN") {
+        const esMismoUsuario =
+          newSession?.user.id != null &&
+          newSession.user.id === usuarioRef.current?.id_usuario;
 
-      if (newSession) {
-        void cargarPerfil();
-      } else {
+        setSession(newSession);
+        setLoading(false);
+
+        if (newSession && !esMismoUsuario) {
+          void cargarPerfil();
+        }
+        return;
+      }
+
+      if (event === "SIGNED_OUT") {
+        usuarioRef.current = null;
+        setSession(null);
         setUsuario(null);
+        setLoading(false);
+        return;
       }
     });
 

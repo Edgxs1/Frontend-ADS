@@ -8,6 +8,7 @@ export interface Concepto {
   id_partida: string;
   tipo: TipoConcepto;
   clave: string;
+  descripcion: string;
   unidad_medida: string;
   cantidad: number;
   precio_unitario: number;
@@ -16,4 +17,14 @@ export interface Concepto {
 
 export interface ConceptoConPartida extends Concepto {
   partida_clave: string | null;
+}
+
+export interface CrearConceptoInput {
+  id_partida: string;
+  tipo: TipoConcepto;
+  clave: string;
+  descripcion: string;
+  unidad_medida: string;
+  cantidad: number;
+  precio_unitario: number;
 }

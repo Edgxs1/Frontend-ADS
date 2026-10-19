@@ -18,77 +18,88 @@ interface ObraActiva {
   nombre: string;
 }
 
+interface DatosObras {
+  idUsuario: string;
+  obras: Obra[];
+  error: string | null;
+}
+
 interface ObraContextValue {
   obras: Obra[];
   obraActiva: ObraActiva | null;
   loadingObras: boolean;
   errorObras: string | null;
-  seleccionarObra: (obra: ObraActiva) => void;
-  refrescarObras: () => Promise<void>;
+  seleccionarObra: (idObra: string) => void;
 }
 
 const ObraContext = createContext<ObraContextValue | undefined>(undefined);
 
-export function ObraProvider({ children }: { children: ReactNode }) {
-  const { session, loading, accessToken } = useSupabaseSession();
-  const [obras, setObras] = useState<Obra[]>([]);
-  const [obraActiva, setObraActiva] = useState<ObraActiva | null>(null);
-  const [loadingObras, setLoadingObras] = useState(false);
-  const [errorObras, setErrorObras] = useState<string | null>(null);
+async function obtenerObrasAsignadas(): Promise<Obra[]> {
+  const response = await apiFetch("/api/v1/obras/asignadas");
 
-  const refrescarObras = useCallback(async () => {
-    if (!accessToken) {
-      setObras([]);
-      setErrorObras(null);
+  if (!response.ok) {
+    throw new Error("No se pudieron obtener las obras asignadas.");
+  }
+
+  const body = (await response.json()) as { data?: Obra[] };
+  return body.data ?? [];
+}
+
+export function ObraProvider({ children }: { children: ReactNode }) {
+  const { session, loading } = useSupabaseSession();
+  const idUsuario = session?.user.id ?? null;
+  const [datos, setDatos] = useState<DatosObras | null>(null);
+  const [seleccionId, setSeleccionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!idUsuario) {
       return;
     }
 
-    setLoadingObras(true);
-    setErrorObras(null);
+    let activo = true;
 
-    try {
-      const response = await apiFetch("/api/v1/obras/asignadas");
-      if (!response.ok) {
-        throw new Error("No se pudieron obtener las obras asignadas.");
-      }
-
-      const body = (await response.json()) as { data: Obra[] };
-      const datos = body.data ?? [];
-      setObras(datos);
-
-      if (datos.length > 0) {
-        const actual = obraActiva;
-        const existe = actual ? datos.some((o) => o.id_obra === actual.id_obra) : false;
-
-        if (!existe) {
-          const primera = datos[0];
-          setObraActiva({ id_obra: primera.id_obra, nombre: primera.nombre });
+    obtenerObrasAsignadas()
+      .then((obras) => {
+        if (activo) setDatos({ idUsuario, obras, error: null });
+      })
+      .catch((err: unknown) => {
+        if (activo) {
+          setDatos({
+            idUsuario,
+            obras: [],
+            error:
+              err instanceof Error ? err.message : "Ocurrió un error inesperado.",
+          });
         }
-      } else {
-        setObraActiva(null);
-      }
-    } catch (err) {
-      setErrorObras(err instanceof Error ? err.message : "Ocurrió un error inesperado.");
-      setObras([]);
-    } finally {
-      setLoadingObras(false);
-    }
-  }, [accessToken, obraActiva]);
+      });
 
-  useEffect(() => {
-    if (!loading && session && accessToken) {
-      void refrescarObras();
+    return () => {
+      activo = false;
+    };
+  }, [idUsuario]);
+
+  const datosValidos = useMemo(
+    () => (datos && idUsuario && datos.idUsuario === idUsuario ? datos : null),
+    [datos, idUsuario],
+  );
+
+  const obras = useMemo(() => datosValidos?.obras ?? [], [datosValidos]);
+  const errorObras = datosValidos?.error ?? null;
+  const loadingObras = loading || (idUsuario !== null && datosValidos === null);
+
+  const obraActiva = useMemo<ObraActiva | null>(() => {
+    if (obras.length === 0) {
+      return null;
     }
 
-    if (!session) {
-      setObras([]);
-      setObraActiva(null);
-      setErrorObras(null);
-    }
-  }, [loading, session, accessToken, refrescarObras]);
+    const elegida =
+      obras.find((obra) => obra.id_obra === seleccionId) ?? obras[0];
 
-  const seleccionarObra = useCallback((obra: ObraActiva) => {
-    setObraActiva(obra);
+    return { id_obra: elegida.id_obra, nombre: elegida.nombre };
+  }, [obras, seleccionId]);
+
+  const seleccionarObra = useCallback((idObra: string) => {
+    setSeleccionId(idObra);
   }, []);
 
   const value = useMemo<ObraContextValue>(
@@ -98,9 +109,8 @@ export function ObraProvider({ children }: { children: ReactNode }) {
       loadingObras,
       errorObras,
       seleccionarObra,
-      refrescarObras,
     }),
-    [obras, obraActiva, loadingObras, errorObras, seleccionarObra, refrescarObras],
+    [obras, obraActiva, loadingObras, errorObras, seleccionarObra],
   );
 
   return <ObraContext.Provider value={value}>{children}</ObraContext.Provider>;

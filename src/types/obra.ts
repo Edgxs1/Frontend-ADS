@@ -6,3 +6,9 @@ export interface Obra {
   activo: boolean;
   created_at: string;
 }
+
+export interface CrearObraInput {
+  nombre: string;
+  tipo_edificacion?: string;
+  num_habitaciones?: number;
+}

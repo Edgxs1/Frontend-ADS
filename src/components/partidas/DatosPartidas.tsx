@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ClipboardList, Loader2 } from "lucide-react";
 import { obtenerPartidas } from "@/services/partida";
 import { useSupabaseSession } from "@/providers/supabase-provider";
@@ -10,48 +10,62 @@ import { PartidaFormulario } from "@/components/partidas/PartidaFormulario";
 import { PartidasLista } from "@/components/partidas/PartidasLista";
 import type { Partida } from "@/types";
 
+interface DatosPartidasCargados {
+  idObra: string;
+  partidas: Partida[];
+  error: string | null;
+}
+
 export function DatosPartidas() {
   const { obraActiva } = useObra();
   const { rol } = useSupabaseSession();
-  const [partidas, setPartidas] = useState<Partida[]>([]);
-  const [cargando, setCargando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [datos, setDatos] = useState<DatosPartidasCargados | null>(null);
+
+  const idObra = obraActiva?.id_obra ?? null;
 
   useEffect(() => {
-    if (!obraActiva) {
-      setPartidas([]);
-      setCargando(false);
-      setError(null);
+    if (!idObra) {
       return;
     }
 
+    const idSolicitada = idObra;
     let activo = true;
-    setCargando(true);
-    setError(null);
 
-    obtenerPartidas(obraActiva.id_obra)
-      .then((data) => {
-        if (activo) setPartidas(data);
+    obtenerPartidas(idSolicitada)
+      .then((partidas) => {
+        if (activo) {
+          setDatos({ idObra: idSolicitada, partidas, error: null });
+        }
       })
       .catch((err: unknown) => {
         if (activo) {
-          setError(err instanceof Error ? err.message : "Ocurrió un error inesperado.");
+          setDatos({
+            idObra: idSolicitada,
+            partidas: [],
+            error:
+              err instanceof Error ? err.message : "Ocurrió un error inesperado.",
+          });
         }
-      })
-      .finally(() => {
-        if (activo) setCargando(false);
       });
 
     return () => {
       activo = false;
     };
-  }, [obraActiva]);
+  }, [idObra]);
+
+  const datosValidos = useMemo(
+    () => (datos && idObra && datos.idObra === idObra ? datos : null),
+    [datos, idObra],
+  );
+
+  const cargando = idObra !== null && datosValidos === null;
+  const partidas = datosValidos?.partidas ?? [];
+  const error = datosValidos?.error ?? null;
+  const puedeCrear = rol === "Administrador" || rol === "Superintendente";
 
   if (!obraActiva) {
     return <SinObraSeleccionada />;
   }
-
-  const puedeCrear = rol === "Administrador" || rol === "Superintendente";
 
   return (
     <div className="space-y-6">
@@ -71,7 +85,17 @@ export function DatosPartidas() {
         <PartidaFormulario
           idObra={obraActiva.id_obra}
           onCreada={(nueva) => {
-            setPartidas((prev) => [...prev, nueva].sort((a, b) => a.clave.localeCompare(b.clave)));
+            setDatos((prev) => {
+              const base =
+                prev && prev.idObra === nueva.id_obra ? prev.partidas : [];
+              return {
+                idObra: nueva.id_obra,
+                partidas: [...base, nueva].sort((a, b) =>
+                  a.clave.localeCompare(b.clave),
+                ),
+                error: null,
+              };
+            });
           }}
         />
       ) : null}

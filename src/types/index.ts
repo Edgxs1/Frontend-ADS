@@ -1,6 +1,11 @@
 export type { Partida } from "./partida";
 export { TIPOS_CONCEPTO } from "./concepto";
-export type { Concepto, ConceptoConPartida, TipoConcepto } from "./concepto";
+export type {
+  Concepto,
+  ConceptoConPartida,
+  CrearConceptoInput,
+  TipoConcepto,
+} from "./concepto";
 export type { Contratista } from "./contratista";
 export type {
   Contrato,
@@ -9,3 +14,7 @@ export type {
   RegistrarContratoInput,
 } from "./contrato";
 export type { ArchivoRepositorio } from "./archivo";
+export type { Obra, CrearObraInput } from "./obra";
+export { ROLES_SISTEMA } from "./usuario";
+export type { RolSistema, UsuarioAdmin, CrearUsuarioInput } from "./usuario";
+export type { AsignacionObra } from "./asignacion";

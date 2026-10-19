@@ -4,4 +4,5 @@ export interface ArchivoRepositorio {
   id_subido_por: string;
   tipo_documento: string;
   url_archivo: string;
+  created_at?: string | null;
 }
