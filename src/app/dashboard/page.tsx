@@ -150,6 +150,13 @@ export default function DashboardPage() {
               <FolderOpen className="h-4 w-4" aria-hidden="true" />
               Expediente
             </Link>
+            <Link
+              href="/dashboard/reportes"
+              className="hidden items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 sm:inline-flex"
+            >
+              <ClipboardList className="h-4 w-4" aria-hidden="true" />
+              Reportes Diarios
+            </Link>
             {rol === "Administrador" ? (
               <>
                 <Link

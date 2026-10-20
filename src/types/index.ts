@@ -18,3 +18,9 @@ export type { Obra, CrearObraInput } from "./obra";
 export { ROLES_SISTEMA } from "./usuario";
 export type { RolSistema, UsuarioAdmin, CrearUsuarioInput } from "./usuario";
 export type { AsignacionObra } from "./asignacion";
+export type {
+  EstadoReporte,
+  Reporte,
+  FotoReporte,
+  CrearReporteInput,
+} from "./reporte";
