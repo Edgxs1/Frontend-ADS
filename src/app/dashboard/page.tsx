@@ -157,6 +157,13 @@ export default function DashboardPage() {
               <ClipboardList className="h-4 w-4" aria-hidden="true" />
               Reportes Diarios
             </Link>
+            <Link
+              href="/dashboard/bitacora"
+              className="hidden items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 sm:inline-flex"
+            >
+              <BookOpen className="h-4 w-4" aria-hidden="true" />
+              Bitácora
+            </Link>
             {rol === "Administrador" ? (
               <>
                 <Link

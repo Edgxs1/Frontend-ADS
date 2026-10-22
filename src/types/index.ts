@@ -24,3 +24,9 @@ export type {
   FotoReporte,
   CrearReporteInput,
 } from "./reporte";
+export type {
+  EstadoNota,
+  NotaBitacora,
+  CrearNotaInput,
+  EditarNotaInput,
+} from "./bitacora";
