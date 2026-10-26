@@ -62,6 +62,22 @@ export async function getAsignacionesObra(
   return body.data ?? [];
 }
 
+export async function desasignarUsuarioDeObra(
+  idObra: string,
+  idUsuario: string,
+): Promise<void> {
+  const response = await apiFetch(
+    `/api/v1/obras/${idObra}/usuarios/${idUsuario}`,
+    { method: "DELETE" },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await leerMensajeError(response, "No se pudo desvincular al usuario."),
+    );
+  }
+}
+
 export async function asignarUsuarioAObra(
   idObra: string,
   idUsuario: string,

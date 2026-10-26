@@ -18,7 +18,23 @@ export async function apiFetch(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  return fetch(`${API_URL}${path}`, { ...options, headers });
+  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+
+  if (response.status === 403) {
+    const copia = response.clone();
+    const body = (await copia.json().catch(() => null)) as
+      | { error?: { details?: { code?: string } } }
+      | null;
+
+    if (body?.error?.details?.code === "CUENTA_DESACTIVADA") {
+      await supabase.auth.signOut().catch(() => undefined);
+      if (typeof window !== "undefined") {
+        window.location.replace("/login?motivo=desactivada");
+      }
+    }
+  }
+
+  return response;
 }
 
 interface CuerpoError {

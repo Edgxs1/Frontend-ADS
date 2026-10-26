@@ -1,10 +1,5 @@
 import { apiFetch, leerMensajeError } from "@/lib/api";
-import type {
-  CrearNotaInput,
-  EditarNotaInput,
-  EstadoNota,
-  NotaBitacora,
-} from "@/types";
+import type { CrearNotaInput, EditarNotaInput, NotaBitacora } from "@/types";
 
 export async function getNotas(idObra: string): Promise<NotaBitacora[]> {
   const response = await apiFetch(`/api/v1/obras/${idObra}/bitacora`);
@@ -76,13 +71,11 @@ export async function eliminarNota(
 export async function firmarNota(
   idObra: string,
   idNota: string,
-  estado: EstadoNota,
 ): Promise<NotaBitacora> {
   const response = await apiFetch(
-    `/api/v1/obras/${idObra}/bitacora/${idNota}/estado`,
+    `/api/v1/obras/${idObra}/bitacora/${idNota}/firmar`,
     {
       method: "PATCH",
-      body: JSON.stringify({ estado }),
     },
   );
 

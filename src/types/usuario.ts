@@ -18,6 +18,16 @@ export interface UsuarioAdmin {
   correo: string;
   id_rol: number | null;
   rol: Rol | null;
+  rfc: string | null;
+  telefono: string | null;
+  cedula_profesional: string | null;
+  activo: boolean;
+}
+
+export interface ActualizarPerfilInput {
+  rfc?: string;
+  telefono?: string;
+  cedula_profesional?: string;
 }
 
 export interface CrearUsuarioInput {

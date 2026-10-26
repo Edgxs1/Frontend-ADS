@@ -1,8 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, Loader2, UserPlus } from "lucide-react";
-import { asignarUsuarioAObra, getAsignacionesObra } from "@/services/obra";
+import { AlertCircle, Loader2, UserMinus, UserPlus } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  asignarUsuarioAObra,
+  desasignarUsuarioDeObra,
+  getAsignacionesObra,
+} from "@/services/obra";
 import { getUsuarios } from "@/services/usuario";
 import { formatearFecha } from "@/lib/format";
 import type { AsignacionObra, Obra, UsuarioAdmin } from "@/types";
@@ -18,6 +35,7 @@ export function AsignacionesObra({ obra }: AsignacionesObraProps) {
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState("");
   const [asignando, setAsignando] = useState(false);
   const [errorAsignacion, setErrorAsignacion] = useState<string | null>(null);
+  const [desvinculando, setDesvinculando] = useState<string | null>(null);
 
   useEffect(() => {
     let activo = true;
@@ -79,6 +97,28 @@ export function AsignacionesObra({ obra }: AsignacionesObraProps) {
       );
     } finally {
       setAsignando(false);
+    }
+  };
+
+  const handleDesvincular = async (idUsuario: string) => {
+    setDesvinculando(idUsuario);
+
+    try {
+      await desasignarUsuarioDeObra(obra.id_obra, idUsuario);
+      setAsignaciones((prev) =>
+        prev
+          ? prev.filter((asignacion) => asignacion.id_usuario !== idUsuario)
+          : prev,
+      );
+      toast.success("Usuario desvinculado de la obra.");
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "No se pudo desvincular al usuario.",
+      );
+    } finally {
+      setDesvinculando(null);
     }
   };
 
@@ -175,6 +215,9 @@ export function AsignacionesObra({ obra }: AsignacionesObraProps) {
                 <th className="px-4 py-3 text-left font-medium text-slate-500">
                   Desde
                 </th>
+                <th className="px-4 py-3 text-right font-medium text-slate-500">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -205,12 +248,61 @@ export function AsignacionesObra({ obra }: AsignacionesObraProps) {
                     <td className="px-4 py-3 text-slate-600">
                       {formatearFecha(asignacion.fecha_inicio)}
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={desvinculando === asignacion.id_usuario}
+                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                          >
+                            {desvinculando === asignacion.id_usuario ? (
+                              <Loader2
+                                className="h-4 w-4 animate-spin"
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <UserMinus
+                                className="h-4 w-4"
+                                aria-hidden="true"
+                              />
+                            )}
+                            Desvincular
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              ¿Desvincular usuario de la obra?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              ¿Estás seguro de desvincular a este usuario de la
+                              obra? Perderá el acceso inmediatamente, pero su
+                              historial de registros se conservará.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-600 text-white hover:bg-red-700"
+                              onClick={() =>
+                                void handleDesvincular(asignacion.id_usuario)
+                              }
+                            >
+                              Desvincular
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="px-4 py-6 text-center text-sm text-slate-500"
                   >
                     Esta obra no tiene usuarios asignados.

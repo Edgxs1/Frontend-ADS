@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   BookOpen,
+  CheckCircle2,
+  Clock,
   Loader2,
   Lock,
   Pencil,
@@ -77,6 +79,8 @@ export function DatosBitacora() {
   const error = datosValidos?.error ?? null;
 
   const esAdmin = rol === "Administrador";
+  const esSuperintendente = rol === "Superintendente";
+  const esSupervisor = rol === "Supervisor";
   const esResidente = rol === "Residente";
 
   function actualizarNota(actualizada: NotaBitacora) {
@@ -98,11 +102,7 @@ export function DatosBitacora() {
     setOcupada(nota.id_nota);
 
     try {
-      const actualizada = await firmarNota(
-        obraActiva.id_obra,
-        nota.id_nota,
-        "Firmada",
-      );
+      const actualizada = await firmarNota(obraActiva.id_obra, nota.id_nota);
       actualizarNota(actualizada);
     } catch (err: unknown) {
       setErrorAccion(
@@ -205,9 +205,20 @@ export function DatosBitacora() {
           {notas.map((nota) => {
             const abierta = nota.estado === "Abierta";
             const esCreador = idUsuario !== null && nota.id_creador === idUsuario;
-            const puedeEditar = abierta && (esCreador || esAdmin);
-            const puedeFirmar = abierta && esResidente;
+            const tieneAlgunaFirma =
+              Boolean(nota.firma_superintendente) ||
+              Boolean(nota.firma_supervisor) ||
+              Boolean(nota.firma_residente);
+            const puedeEditar = abierta && !tieneAlgunaFirma && (esCreador || esAdmin);
+            const puedeFirmar =
+              abierta &&
+              ((esSuperintendente && !nota.firma_superintendente) ||
+                (esSupervisor && !nota.firma_supervisor) ||
+                (esResidente && !nota.firma_residente));
             const bloqueada = ocupada === nota.id_nota;
+            const firmadaPorSuperintendente = Boolean(nota.firma_superintendente);
+            const firmadaPorSupervisor = Boolean(nota.firma_supervisor);
+            const firmadaPorResidente = Boolean(nota.firma_residente);
 
             return (
               <li key={nota.id_nota} className="relative">
@@ -234,7 +245,60 @@ export function DatosBitacora() {
                     {nota.texto}
                   </p>
 
-                  {abierta && (puedeEditar || puedeFirmar) ? (
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Progreso de firmas
+                    </p>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${
+                          firmadaPorSuperintendente
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {firmadaPorSuperintendente ? (
+                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        ) : (
+                          <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                        )}
+                        Firma Superintendente:{" "}
+                        {firmadaPorSuperintendente ? "✅" : "⏳ Pendiente"}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${
+                          firmadaPorSupervisor
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {firmadaPorSupervisor ? (
+                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        ) : (
+                          <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                        )}
+                        Firma Supervisor:{" "}
+                        {firmadaPorSupervisor ? "✅" : "⏳ Pendiente"}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${
+                          firmadaPorResidente
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {firmadaPorResidente ? (
+                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        ) : (
+                          <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                        )}
+                        Firma Residente:{" "}
+                        {firmadaPorResidente ? "✅" : "⏳ Pendiente"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {(abierta && (puedeEditar || puedeFirmar)) ? (
                     <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
                       {puedeEditar ? (
                         <>
@@ -280,6 +344,7 @@ export function DatosBitacora() {
                       ) : null}
                     </div>
                   ) : null}
+
                 </article>
               </li>
             );

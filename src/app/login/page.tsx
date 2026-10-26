@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -23,6 +23,22 @@ export default function LoginPage() {
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [mensajeError, setMensajeError] = useState("");
+
+  useEffect(() => {
+    const motivo = new URLSearchParams(window.location.search).get("motivo");
+
+    if (motivo !== "desactivada") {
+      return;
+    }
+
+    const temporizador = window.setTimeout(() => {
+      setMensajeError(
+        "Cuenta desactivada temporalmente. Contacte al administrador.",
+      );
+    }, 0);
+
+    return () => window.clearTimeout(temporizador);
+  }, []);
 
   const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const formValido = emailValido && password.length >= 6;

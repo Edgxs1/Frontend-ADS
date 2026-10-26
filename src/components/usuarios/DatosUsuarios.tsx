@@ -93,6 +93,13 @@ export function DatosUsuarios() {
               ),
             );
           }}
+          onEstadoActualizado={(usuario) => {
+            setUsuarios((prev) =>
+              (prev ?? []).map((item) =>
+                item.id_usuario === usuario.id_usuario ? usuario : item,
+              ),
+            );
+          }}
         />
       ) : null}
     </div>

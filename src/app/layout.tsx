@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 import { SupabaseProvider } from "@/providers/supabase-provider";
 import { ObraProvider } from "@/providers/obra-provider";
 import "./globals.css";
@@ -27,7 +28,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <SupabaseProvider>
-          <ObraProvider>{children}</ObraProvider>
+          <ObraProvider>
+            {children}
+            <Toaster richColors position="top-right" />
+          </ObraProvider>
         </SupabaseProvider>
       </body>
     </html>

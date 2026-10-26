@@ -1,5 +1,9 @@
 import { apiFetch, leerMensajeError } from "@/lib/api";
-import type { CrearUsuarioInput, UsuarioAdmin } from "@/types";
+import type {
+  ActualizarPerfilInput,
+  CrearUsuarioInput,
+  UsuarioAdmin,
+} from "@/types";
 
 export async function getUsuarios(): Promise<UsuarioAdmin[]> {
   const response = await apiFetch("/api/v1/admin/usuarios");
@@ -52,4 +56,38 @@ export async function actualizarRolUsuario(
 
   const body = (await response.json()) as { data: UsuarioAdmin };
   return body.data;
+}
+
+export async function actualizarEstadoUsuario(
+  idUsuario: string,
+  activo: boolean,
+): Promise<UsuarioAdmin> {
+  const response = await apiFetch(`/api/v1/usuarios/${idUsuario}/estado`, {
+    method: "PATCH",
+    body: JSON.stringify({ activo }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await leerMensajeError(response, "No se pudo actualizar el estado."),
+    );
+  }
+
+  const body = (await response.json()) as { data: UsuarioAdmin };
+  return body.data;
+}
+
+export async function actualizarPerfil(
+  input: ActualizarPerfilInput,
+): Promise<void> {
+  const response = await apiFetch("/api/v1/usuarios/perfil", {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await leerMensajeError(response, "No se pudo actualizar el perfil."),
+    );
+  }
 }

@@ -2,20 +2,27 @@
 
 import { useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { actualizarRolUsuario } from "@/services/usuario";
+import {
+  actualizarEstadoUsuario,
+  actualizarRolUsuario,
+} from "@/services/usuario";
+import { Switch } from "@/components/ui/switch";
 import { ROLES_SISTEMA } from "@/types";
 import type { UsuarioAdmin } from "@/types";
 
 interface UsuariosTablaProps {
   usuarios: UsuarioAdmin[];
   onRolActualizado: (usuario: UsuarioAdmin) => void;
+  onEstadoActualizado: (usuario: UsuarioAdmin) => void;
 }
 
 export function UsuariosTabla({
   usuarios,
   onRolActualizado,
+  onEstadoActualizado,
 }: UsuariosTablaProps) {
   const [guardandoId, setGuardandoId] = useState<string | null>(null);
+  const [estadoId, setEstadoId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<string | null>(null);
 
   const handleCambiarRol = async (usuario: UsuarioAdmin, idRol: number) => {
@@ -38,6 +45,28 @@ export function UsuariosTabla({
     }
   };
 
+  const handleCambiarEstado = async (
+    usuario: UsuarioAdmin,
+    activo: boolean,
+  ) => {
+    setEstadoId(usuario.id_usuario);
+    setErrorId(null);
+
+    try {
+      const actualizado = await actualizarEstadoUsuario(
+        usuario.id_usuario,
+        activo,
+      );
+      onEstadoActualizado(actualizado);
+    } catch (err) {
+      setErrorId(
+        err instanceof Error ? err.message : "No se pudo actualizar el estado.",
+      );
+    } finally {
+      setEstadoId(null);
+    }
+  };
+
   if (usuarios.length === 0) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
@@ -56,6 +85,9 @@ export function UsuariosTabla({
             </th>
             <th className="px-4 py-3 text-left font-medium text-slate-500">
               Rol
+            </th>
+            <th className="px-4 py-3 text-left font-medium text-slate-500">
+              Estado
             </th>
           </tr>
         </thead>
@@ -91,7 +123,33 @@ export function UsuariosTabla({
                       aria-hidden="true"
                     />
                   ) : null}
-
+                </div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={usuario.activo}
+                    onCheckedChange={(activo) =>
+                      void handleCambiarEstado(usuario, activo)
+                    }
+                    disabled={estadoId === usuario.id_usuario}
+                    aria-label={`${
+                      usuario.activo ? "Desactivar" : "Activar"
+                    } a ${usuario.correo}`}
+                  />
+                  <span
+                    className={`text-xs font-medium ${
+                      usuario.activo ? "text-emerald-700" : "text-slate-500"
+                    }`}
+                  >
+                    {usuario.activo ? "Activo" : "Inactivo"}
+                  </span>
+                  {estadoId === usuario.id_usuario ? (
+                    <Loader2
+                      className="h-4 w-4 animate-spin text-slate-400"
+                      aria-hidden="true"
+                    />
+                  ) : null}
                   {errorId === usuario.id_usuario ? (
                     <span className="flex items-center gap-1 text-xs text-red-600">
                       <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />

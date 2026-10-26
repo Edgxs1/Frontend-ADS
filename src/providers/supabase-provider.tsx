@@ -25,6 +25,10 @@ export interface PerfilUsuario {
   correo: string;
   id_rol: number;
   rol: Rol | null;
+  rfc: string | null;
+  telefono: string | null;
+  cedula_profesional: string | null;
+  activo: boolean;
 }
 
 interface SupabaseContextValue {
@@ -120,6 +124,31 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       data.subscription.unsubscribe();
     };
   }, [cargarPerfil]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    const intervalo = setInterval(() => {
+      void cargarPerfil(false);
+    }, 20000);
+
+    const alRecuperarFoco = () => {
+      if (document.visibilityState === "visible") {
+        void cargarPerfil(false);
+      }
+    };
+
+    window.addEventListener("focus", alRecuperarFoco);
+    document.addEventListener("visibilitychange", alRecuperarFoco);
+
+    return () => {
+      clearInterval(intervalo);
+      window.removeEventListener("focus", alRecuperarFoco);
+      document.removeEventListener("visibilitychange", alRecuperarFoco);
+    };
+  }, [session, cargarPerfil]);
 
   const value = useMemo<SupabaseContextValue>(
     () => ({
