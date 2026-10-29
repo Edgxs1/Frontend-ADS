@@ -38,6 +38,29 @@ export async function crearReporte(
   return body.data;
 }
 
+export async function actualizarReporte(
+  idObra: string,
+  idReporte: string,
+  data: CrearReporteInput,
+): Promise<Reporte> {
+  const response = await apiFetch(
+    `/api/v1/obras/${idObra}/reportes/${idReporte}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await leerMensajeError(response, "No se pudo actualizar el reporte."),
+    );
+  }
+
+  const body = (await response.json()) as { data: Reporte };
+  return body.data;
+}
+
 export async function cambiarEstadoReporte(
   idObra: string,
   idReporte: string,

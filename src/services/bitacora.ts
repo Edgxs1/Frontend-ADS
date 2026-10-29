@@ -88,3 +88,22 @@ export async function firmarNota(
   const body = (await response.json()) as { data: NotaBitacora };
   return body.data;
 }
+
+export async function sellarNota(idNota: string, password: string): Promise<NotaBitacora> {
+  const response = await apiFetch(`/api/v1/bitacora/${idNota}/firmar`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ password }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await leerMensajeError(response, "No se pudo firmar la nota."),
+    );
+  }
+
+  const body = (await response.json()) as { data: NotaBitacora };
+  return body.data;
+}

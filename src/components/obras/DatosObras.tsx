@@ -94,7 +94,13 @@ export function DatosObras() {
       ) : null}
 
       {!cargando && !error && seleccionada ? (
-        <AsignacionesObra key={seleccionada.id_obra} obra={seleccionada} />
+        <>
+          <AsignacionesObra key={seleccionada.id_obra} obra={seleccionada} />
+          <div className="mt-6">
+            <h3 className="mb-3 text-sm font-semibold text-slate-900">Catálogo de Recursos</h3>
+            <RecursosCatalogo idObra={seleccionada.id_obra} />
+          </div>
+        </>
       ) : null}
     </div>
   );
