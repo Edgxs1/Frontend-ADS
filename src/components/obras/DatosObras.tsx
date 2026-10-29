@@ -7,6 +7,7 @@ import { ObraFormulario } from "./ObraFormulario";
 import { ObrasTabla } from "./ObrasTabla";
 import { AsignacionesObra } from "./AsignacionesObra";
 import type { Obra } from "@/types";
+import { RecursosCatalogo } from "./RecursosCatalogo";
 
 export function DatosObras() {
   const [obras, setObras] = useState<Obra[] | null>(null);
