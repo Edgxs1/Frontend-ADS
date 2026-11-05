@@ -46,10 +46,21 @@ async function obtenerObrasAsignadas(): Promise<Obra[]> {
 }
 
 export function ObraProvider({ children }: { children: ReactNode }) {
-  const { session, loading } = useSupabaseSession();
-  const idUsuario = session?.user.id ?? null;
+  const { session, loading, usuario } = useSupabaseSession();
+  const idUsuario =
+    (usuario as any)?.id_usuario ??
+    (usuario as any)?.id ??
+    session?.user?.id ??
+    null;
   const [datos, setDatos] = useState<DatosObras | null>(null);
-  const [seleccionId, setSeleccionId] = useState<string | null>(null);
+  const [seleccionId, setSeleccionId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem("obra_seleccionada");
+    } catch {
+      return null;
+    }
+  });
 
   useEffect(() => {
     if (!idUsuario) {
@@ -60,15 +71,25 @@ export function ObraProvider({ children }: { children: ReactNode }) {
 
     obtenerObrasAsignadas()
       .then((obras) => {
-        if (activo) setDatos({ idUsuario, obras, error: null });
+        if (activo) {
+          setDatos((prev) => {
+            if (prev && prev.idUsuario === idUsuario && prev.obras?.length) {
+              return { ...prev, error: null };
+            }
+            return { idUsuario, obras: Array.isArray(obras) ? obras : [], error: null };
+          });
+        }
       })
       .catch((err: unknown) => {
         if (activo) {
-          setDatos({
-            idUsuario,
-            obras: [],
-            error:
-              err instanceof Error ? err.message : "Ocurrió un error inesperado.",
+          setDatos((prev) => {
+            if (prev && prev.idUsuario === idUsuario && prev.obras?.length) return prev;
+            return {
+              idUsuario,
+              obras: [],
+              error:
+                err instanceof Error ? err.message : "Ocurrió un error inesperado.",
+            };
           });
         }
       });
@@ -95,11 +116,25 @@ export function ObraProvider({ children }: { children: ReactNode }) {
     const elegida =
       obras.find((obra) => obra.id_obra === seleccionId) ?? obras[0];
 
+    if (elegida && elegida.id_obra !== seleccionId) {
+      setSeleccionId(elegida.id_obra);
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("obra_seleccionada", elegida.id_obra);
+        }
+      } catch {}
+    }
+
     return { id_obra: elegida.id_obra, nombre: elegida.nombre };
   }, [obras, seleccionId]);
 
   const seleccionarObra = useCallback((idObra: string) => {
     setSeleccionId(idObra);
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("obra_seleccionada", idObra);
+      }
+    } catch {}
   }, []);
 
   const value = useMemo<ObraContextValue>(

@@ -1,27 +1,39 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { AlertCircle, ArrowLeft, Download, Loader2, ShieldCheck } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  Download,
+  Loader2,
+  Send,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 import { useObra } from "@/providers/obra-provider";
+import { useSupabaseSession } from "@/providers/supabase-provider";
+import type { Rol } from "@/providers/supabase-provider";
 import { SinObraSeleccionada } from "@/components/common/SinObraSeleccionada";
 import { EstadoEstimacionBadge } from "@/components/estimaciones/estado-badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { CaratulaEstimacion } from "@/components/estimaciones/CaratulaEstimacion";
 import { Button } from "@/components/ui/button";
-import { formatearFecha, formatearMoneda } from "@/lib/format";
-import { getCaratulaOficial } from "@/services/estimacion";
+import { formatearFecha } from "@/lib/format";
+import { cambiarEstadoEstimacion, getCaratulaOficial } from "@/services/estimacion";
 import { getCatalogosPorObra } from "@/services/catalogo";
-import type { CaratulaOficial } from "@/types/estimacion";
+import { getContrato } from "@/services/contrato";
+import { obtenerPartidas } from "@/services/partida";
+import type { ContratoConContratista } from "@/types";
+import type {
+  CaratulaOficial,
+  EstadoEstimacion,
+  Estimacion,
+  EstimacionConcepto,
+  ResumenPartida,
+} from "@/types/estimacion";
 
 const BotonDescargarCaratula = dynamic(
   () =>
@@ -42,15 +54,50 @@ const BotonDescargarCaratula = dynamic(
 interface DatosCargados {
   idObra: string;
   caratula: CaratulaOficial;
+  contrato: ContratoConContratista | null;
+  resumenPartidas: ResumenPartida[];
+}
+
+function agruparPorPartida(conceptos: EstimacionConcepto[]): ResumenPartida[] {
+  const agrupadas = new Map<string, ResumenPartida>();
+
+  for (const concepto of conceptos) {
+    const id = concepto.id_partida ?? "sin-partida";
+    const actual = agrupadas.get(id) ?? {
+      id_partida: concepto.id_partida ?? null,
+      clave: concepto.partida_clave ?? "Sin partida",
+      descripcion:
+        concepto.partida_descripcion ?? "Conceptos sin partida asignada",
+      conceptos: 0,
+      importe: 0,
+    };
+
+    actual.conceptos += 1;
+    actual.importe += Number(concepto.importe ?? 0);
+    agrupadas.set(id, actual);
+  }
+
+  return [...agrupadas.values()].sort((a, b) =>
+    a.clave.localeCompare(b.clave, "es"),
+  );
 }
 
 export function DetalleEstimacionPageClient() {
   const params = useParams<{ id_estimacion: string }>();
   const { obraActiva } = useObra();
+  const { rol, usuario, session, supabase } = useSupabaseSession();
   const idEstimacion = params?.id_estimacion ?? "";
 
   const [datos, setDatos] = useState<DatosCargados | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [accionError, setAccionError] = useState<string | null>(null);
+  const [mensajeExito, setMensajeExito] = useState<string | null>(null);
+  const [accionEnCurso, setAccionEnCurso] = useState<EstadoEstimacion | null>(
+    null,
+  );
+  const [mostrarFirma, setMostrarFirma] = useState(false);
+  const [passwordFirma, setPasswordFirma] = useState("");
+  const [errorFirma, setErrorFirma] = useState<string | null>(null);
 
   const idObra = obraActiva?.id_obra ?? null;
 
@@ -62,20 +109,33 @@ export function DetalleEstimacionPageClient() {
 
     getCaratulaOficial(idSolicitada, idEstimacion)
       .then(async (caratula) => {
-        const catalogos = await getCatalogosPorObra(idSolicitada).catch(
-          () => [],
-        );
+        const [catalogos, partidas, contrato] = await Promise.all([
+          getCatalogosPorObra(idSolicitada).catch(() => []),
+          obtenerPartidas(idSolicitada).catch(() => []),
+          getContrato(idSolicitada).catch(() => null),
+        ]);
         const catalogoPorId = new Map(
           catalogos.map((concepto) => [concepto.id_concepto, concepto]),
+        );
+        const partidaPorId = new Map(
+          partidas.map((partida) => [partida.id_partida, partida]),
         );
 
         const conceptos = caratula.conceptos.map((concepto) => {
           const catalogo = catalogoPorId.get(concepto.id_concepto);
+          const partida = catalogo
+            ? partidaPorId.get(catalogo.id_partida)
+            : undefined;
+
           return {
             ...concepto,
-            clave: catalogo?.clave ?? null,
-            descripcion: catalogo?.descripcion ?? null,
-            unidad_medida: catalogo?.unidad_medida ?? null,
+            clave: concepto.clave ?? catalogo?.clave ?? null,
+            descripcion: concepto.descripcion ?? catalogo?.descripcion ?? null,
+            unidad_medida:
+              concepto.unidad_medida ?? catalogo?.unidad_medida ?? null,
+            id_partida: catalogo?.id_partida ?? null,
+            partida_clave: partida?.clave ?? catalogo?.partida_clave ?? null,
+            partida_descripcion: partida?.descripcion ?? null,
           };
         });
 
@@ -83,6 +143,8 @@ export function DetalleEstimacionPageClient() {
           setDatos({
             idObra: idSolicitada,
             caratula: { ...caratula, conceptos },
+            contrato,
+            resumenPartidas: agruparPorPartida(conceptos),
           });
         }
       })
@@ -106,6 +168,113 @@ export function DetalleEstimacionPageClient() {
 
   const cargando = Boolean(idObra && idEstimacion) && datosValidos === null && !error;
 
+  const actualizarEstimacion = useCallback((actualizada: Estimacion) => {
+    setDatos((prev) =>
+      prev
+        ? {
+            ...prev,
+            caratula: { ...prev.caratula, estimacion: actualizada },
+          }
+        : prev,
+    );
+  }, []);
+
+  const cambiarEstado = useCallback(
+    async (estado: EstadoEstimacion) => {
+      setAccionError(null);
+      setMensajeExito(null);
+      setAccionEnCurso(estado);
+
+      try {
+        const actualizada = await cambiarEstadoEstimacion(
+          idEstimacion,
+          estado,
+        );
+        actualizarEstimacion(actualizada);
+        setMensajeExito(`La estimación cambió a "${estado}" correctamente.`);
+      } catch (err) {
+        setAccionError(
+          err instanceof Error ? err.message : "Ocurrió un error inesperado.",
+        );
+      } finally {
+        setAccionEnCurso(null);
+      }
+    },
+    [idEstimacion, actualizarEstimacion],
+  );
+
+  const confirmarAutorizacion = useCallback(async () => {
+    if (!passwordFirma) {
+      setErrorFirma("Ingresa tu contraseña para firmar.");
+      return;
+    }
+
+    setErrorFirma(null);
+    setAccionError(null);
+    setMensajeExito(null);
+    setAccionEnCurso("Aprobada");
+
+    try {
+      const email = usuario?.correo ?? session?.user?.email;
+
+      if (!email) {
+        throw new Error("No se pudo identificar el correo del usuario.");
+      }
+
+      const { error: errorAuth } = await supabase.auth.signInWithPassword({
+        email,
+        password: passwordFirma,
+      });
+
+      if (errorAuth) {
+        throw new Error("Contraseña incorrecta. Intenta de nuevo.");
+      }
+
+      const actualizada = await cambiarEstadoEstimacion(
+        idEstimacion,
+        "Aprobada",
+      );
+
+      actualizarEstimacion(actualizada);
+      setMensajeExito(
+        "Estimación autorizada y firmada criptográficamente correctamente.",
+      );
+      setMostrarFirma(false);
+      setPasswordFirma("");
+    } catch (err) {
+      setErrorFirma(
+        err instanceof Error
+          ? err.message
+          : "No se pudo autorizar la estimación.",
+      );
+    } finally {
+      setAccionEnCurso(null);
+    }
+  }, [
+    passwordFirma,
+    usuario,
+    session,
+    supabase,
+    idEstimacion,
+    actualizarEstimacion,
+  ]);
+
+  const rechazar = useCallback(async () => {
+    const confirmado = window.confirm(
+      "¿Rechazar esta estimación? Esta acción no puede deshacerse.",
+    );
+
+    if (!confirmado) return;
+
+    await cambiarEstado("Rechazada");
+  }, [cambiarEstado]);
+
+  const abrirFirma = useCallback(() => {
+    setErrorFirma(null);
+    setPasswordFirma("");
+    setMostrarFirma(true);
+  }, []);
+
   if (!obraActiva) {
     return <SinObraSeleccionada />;
   }
@@ -128,6 +297,20 @@ export function DetalleEstimacionPageClient() {
         Volver a estimaciones
       </Link>
 
+      {accionError ? (
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{accionError}</span>
+        </div>
+      ) : null}
+
+      {mensajeExito ? (
+        <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{mensajeExito}</span>
+        </div>
+      ) : null}
+
       {cargando ? (
         <div className="flex min-h-[40dvh] items-center justify-center">
           <Loader2 className="h-7 w-7 animate-spin text-slate-400" aria-hidden="true" />
@@ -145,29 +328,146 @@ export function DetalleEstimacionPageClient() {
         <ContenidoDetalle
           caratula={datosValidos.caratula}
           nombreObra={obraActiva.nombre}
+          contrato={datosValidos.contrato}
+          resumenPartidas={datosValidos.resumenPartidas}
+          rol={rol}
+          accionEnCurso={accionEnCurso}
+          onCambiarEstado={cambiarEstado}
+          onAbrirFirma={abrirFirma}
+          onRechazar={rechazar}
         />
+      ) : null}
+
+      {mostrarFirma ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Autorizar y firmar estimación"
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-semibold text-slate-900">
+                  Autorizar y firmar
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Al firmar esta estimación aceptas la responsabilidad legal del
+                  documento. Se generarán las tres firmas criptográficas.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setMostrarFirma(false);
+                  setPasswordFirma("");
+                  setErrorFirma(null);
+                }}
+                className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-700">
+                  Contraseña
+                </span>
+                <input
+                  type="password"
+                  value={passwordFirma}
+                  onChange={(event) => setPasswordFirma(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                  autoFocus
+                />
+              </label>
+
+              {errorFirma ? (
+                <p className="text-sm text-red-600">{errorFirma}</p>
+              ) : null}
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setMostrarFirma(false);
+                    setPasswordFirma("");
+                    setErrorFirma(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={confirmarAutorizacion}
+                  disabled={accionEnCurso === "Aprobada"}
+                  className="gap-2"
+                >
+                  {accionEnCurso === "Aprobada" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  Firmar y autorizar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );
 }
 
+interface ContenidoDetalleProps {
+  caratula: CaratulaOficial;
+  nombreObra: string;
+  contrato: ContratoConContratista | null;
+  resumenPartidas: ResumenPartida[];
+  rol: Rol | null;
+  accionEnCurso: EstadoEstimacion | null;
+  onCambiarEstado: (estado: EstadoEstimacion) => void;
+  onAbrirFirma: () => void;
+  onRechazar: () => void;
+}
+
 function ContenidoDetalle({
   caratula,
   nombreObra,
-}: {
-  caratula: CaratulaOficial;
-  nombreObra: string;
-}) {
-  const { estimacion, conceptos, caratula: financiero } = caratula;
+  contrato,
+  resumenPartidas,
+  rol,
+  accionEnCurso,
+  onCambiarEstado,
+  onAbrirFirma,
+  onRechazar,
+}: ContenidoDetalleProps) {
+  const { estimacion } = caratula;
   const tieneFirmas = Boolean(
     estimacion.firma_superintendente &&
       estimacion.firma_supervisor &&
       estimacion.firma_residente,
   );
 
+  const esSupervisor = rol === "Supervisor";
+  const esResidente = rol === "Residente";
+  const bloqueado = accionEnCurso !== null;
+
+  const puedePresentar =
+    esSupervisor && estimacion.estado === "Presentación";
+  const puedeCompletarRevision =
+    esSupervisor && estimacion.estado === "Revisión";
+  const puedeAutorizar =
+    esResidente && estimacion.estado === "Autorización";
+  const puedeRechazar =
+    esResidente && estimacion.estado === "Autorización";
+
   return (
     <>
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
@@ -180,6 +480,7 @@ function ContenidoDetalle({
             {formatearFecha(estimacion.periodo_fin)}
           </p>
         </div>
+
         <div className="flex flex-col items-start gap-2 sm:items-end">
           {tieneFirmas ? (
             <div className="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
@@ -187,118 +488,87 @@ function ContenidoDetalle({
               Firmada criptográficamente
             </div>
           ) : null}
-          {estimacion.estado === "Autorizada" && tieneFirmas ? (
+
+          {estimacion.estado === "Aprobada" && tieneFirmas ? (
             <BotonDescargarCaratula
               caratula={caratula}
               nombreObra={nombreObra}
+              contrato={contrato}
+              resumenPartidas={resumenPartidas}
             />
           ) : null}
+
+          <div className="flex flex-wrap justify-end gap-2">
+            {puedePresentar ? (
+              <Button
+                type="button"
+                className="gap-2"
+                disabled={bloqueado}
+                onClick={() => onCambiarEstado("Revisión")}
+              >
+                {accionEnCurso === "Revisión" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                )}
+                Presentar Estimación
+              </Button>
+            ) : null}
+
+            {puedeCompletarRevision ? (
+              <Button
+                type="button"
+                className="gap-2"
+                disabled={bloqueado}
+                onClick={() => onCambiarEstado("Autorización")}
+              >
+                {accionEnCurso === "Autorización" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Check className="h-4 w-4" aria-hidden="true" />
+                )}
+                Completar Revisión
+              </Button>
+            ) : null}
+
+            {puedeAutorizar ? (
+              <Button
+                type="button"
+                className="gap-2"
+                disabled={bloqueado}
+                onClick={onAbrirFirma}
+              >
+                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                Autorizar y Firmar
+              </Button>
+            ) : null}
+
+            {puedeRechazar ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                disabled={bloqueado}
+                onClick={onRechazar}
+              >
+                {accionEnCurso === "Rechazada" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <X className="h-4 w-4" aria-hidden="true" />
+                )}
+                Rechazar
+              </Button>
+            ) : null}
+          </div>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Conceptos</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Clave</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead className="text-right">Cantidad</TableHead>
-                  <TableHead className="text-right">P. Unitario</TableHead>
-                  <TableHead className="text-right">Importe</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {conceptos.map((concepto, index) => (
-                  <TableRow key={concepto.id_detalle ?? `${concepto.id_concepto}-${index}`}>
-                    <TableCell className="font-medium text-slate-900">
-                      {concepto.clave ?? "—"}
-                    </TableCell>
-                    <TableCell className="max-w-[260px] truncate text-slate-600">
-                      {concepto.descripcion ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right text-slate-600">
-                      {concepto.cantidad_de_esta_estimacion ?? "—"}
-                      {concepto.unidad_medida ? ` ${concepto.unidad_medida}` : ""}
-                    </TableCell>
-                    <TableCell className="text-right text-slate-600">
-                      {formatearMoneda(concepto.precio_unitario_snapshot)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium text-slate-900">
-                      {formatearMoneda(concepto.importe)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Resumen financiero</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
-            <Fila etiqueta="Subtotal" valor={financiero.subtotal} />
-            <Fila etiqueta="IVA (16%)" valor={financiero.iva} />
-            <Fila
-              etiqueta="Retención inspección (0.5%)"
-              valor={financiero.retencion_inspeccion}
-            />
-            <Fila
-              etiqueta="Amortización anticipo"
-              valor={financiero.amortizacion_anticipo}
-            />
-            <Fila
-              etiqueta="Retención atraso"
-              valor={financiero.retencion_atraso_programa}
-            />
-            <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-3">
-              <span className="font-medium text-slate-900">Neto a recibir</span>
-              <span className="text-lg font-semibold text-slate-900">
-                {formatearMoneda(financiero.neto_a_recibir)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {tieneFirmas ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Firmas digitales</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-xs">
-            <Firma etiqueta="Superintendente" hash={estimacion.firma_superintendente} />
-            <Firma etiqueta="Supervisor" hash={estimacion.firma_supervisor} />
-            <Firma etiqueta="Residente" hash={estimacion.firma_residente} />
-          </CardContent>
-        </Card>
-      ) : null}
+      <CaratulaEstimacion
+        caratula={caratula}
+        nombreObra={nombreObra}
+        contrato={contrato}
+        resumenPartidas={resumenPartidas}
+      />
     </>
-  );
-}
-
-function Fila({ etiqueta, valor }: { etiqueta: string; valor: number }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-slate-500">{etiqueta}</span>
-      <span className="font-medium text-slate-900">{formatearMoneda(valor)}</span>
-    </div>
-  );
-}
-
-function Firma({ etiqueta, hash }: { etiqueta: string; hash: string | null }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="font-medium text-slate-700">{etiqueta}</span>
-      <code className="break-all rounded bg-slate-50 px-2 py-1 text-[11px] text-slate-500">
-        {hash}
-      </code>
-    </div>
   );
 }

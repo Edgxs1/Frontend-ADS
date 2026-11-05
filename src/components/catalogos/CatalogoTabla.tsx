@@ -1,5 +1,6 @@
 "use client";
 
+import { Pencil, Trash2 } from "lucide-react";
 import type { ConceptoConPartida } from "@/types";
 import { formatearMoneda } from "@/lib/format";
 
@@ -16,9 +17,18 @@ const ENCABEZADOS = [
 interface CatalogoTablaProps {
   titulo: string;
   conceptos: ConceptoConPartida[];
+  puedeGestionar?: boolean;
+  onEditar?: (concepto: ConceptoConPartida) => void;
+  onEliminar?: (concepto: ConceptoConPartida) => void;
 }
 
-export function CatalogoTabla({ titulo, conceptos }: CatalogoTablaProps) {
+export function CatalogoTabla({
+  titulo,
+  conceptos,
+  puedeGestionar = false,
+  onEditar,
+  onEliminar,
+}: CatalogoTablaProps) {
   if (conceptos.length === 0) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -51,6 +61,11 @@ export function CatalogoTabla({ titulo, conceptos }: CatalogoTablaProps) {
                   {encabezado}
                 </th>
               ))}
+              {puedeGestionar ? (
+                <th className="whitespace-nowrap px-4 py-2 text-right font-medium uppercase tracking-wide text-slate-400">
+                  Acciones
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
@@ -77,13 +92,35 @@ export function CatalogoTabla({ titulo, conceptos }: CatalogoTablaProps) {
                 <td className="whitespace-nowrap px-4 py-3 text-right font-medium tabular-nums text-slate-900">
                   {formatearMoneda(concepto.importe_total)}
                 </td>
+                {puedeGestionar ? (
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
+                    <div className="flex justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => onEditar?.(concepto)}
+                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                        aria-label={`Editar concepto ${concepto.clave}`}
+                      >
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onEliminar?.(concepto)}
+                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                        aria-label={`Eliminar concepto ${concepto.clave}`}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>
           <tfoot className="border-t border-slate-200 bg-slate-50">
             <tr>
               <td
-                colSpan={ENCABEZADOS.length - 1}
+                colSpan={ENCABEZADOS.length - 1 + (puedeGestionar ? 1 : 0)}
                 className="px-4 py-3 text-right font-semibold uppercase tracking-wide text-slate-500"
               >
                 Total
@@ -93,6 +130,7 @@ export function CatalogoTabla({ titulo, conceptos }: CatalogoTablaProps) {
                   conceptos.reduce((suma, c) => suma + Number(c.importe_total), 0),
                 )}
               </td>
+              {puedeGestionar ? <td className="px-4 py-3" /> : null}
             </tr>
           </tfoot>
         </table>

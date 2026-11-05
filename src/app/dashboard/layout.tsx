@@ -37,7 +37,7 @@ export default function DashboardLayout({
     }
   }, [loading, session, router]);
 
-  if (loading || (session && loadingPerfil) || (usuario?.activo === false)) {
+  if (loading || (session && !usuario) || (usuario?.activo === false)) {
     return (
       <main className="flex min-h-dvh items-center justify-center bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-slate-400" aria-hidden="true" />

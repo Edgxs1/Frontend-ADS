@@ -158,14 +158,10 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <div className="flex flex-col gap-6">
           {GRUPOS_NAV.map((grupo) => {
-            if (grupo.rolesPermitidos && rol) {
-              if (!grupo.rolesPermitidos.includes(rol)) {
+            if (grupo.rolesPermitidos) {
+              if (!rol || !grupo.rolesPermitidos.includes(rol)) {
                 return null;
               }
-            }
-
-            if (grupo.rolesPermitidos && !rol) {
-              return null;
             }
 
             return (

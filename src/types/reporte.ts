@@ -1,5 +1,6 @@
 export type EstadoReporte = "Validado" | "Por revisar";
 
+export type EstadoTipoDia = "Laborado" | "No laborado";
 export type EstadoTiempo = "Soleado" | "Nublado" | "Lluvia moderada" | "Lluvia intensa";
 export type EstadoSenalamiento = "Buen estado" | "Mal estado" | "Suficiente" | "Insuficiente";
 export type EstadoEPP = "Completo" | "Incompleto" | "Suficiente" | "Insuficiente";
@@ -20,7 +21,8 @@ export interface Reporte {
   actividades_realizadas: string | null;
   notas_relevantes: string | null;
   estado_tiempo: EstadoTiempo | null;
-  hora_lluvia: string | null;
+  hora_lluvia: number | null;
+  tipo_dia: EstadoTipoDia | null;
   senalamiento_preventivo: EstadoSenalamiento | null;
   equipo_proteccion: EstadoEPP | null;
   suministro_materiales: EstadoSuministro | null;
@@ -41,7 +43,8 @@ export interface FotoReporte {
 export interface CrearReporteInput {
   actividades_realizadas?: string | null;
   notas_relevantes?: string | null;
-  hora_lluvia?: string | null;
+  hora_lluvia?: number | null;
+  tipo_dia?: EstadoTipoDia | null;
   estado_tiempo?: EstadoTiempo | null;
   senalamiento_preventivo?: EstadoSenalamiento | null;
   equipo_proteccion?: EstadoEPP | null;

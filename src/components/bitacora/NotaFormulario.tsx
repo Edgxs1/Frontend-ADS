@@ -49,7 +49,7 @@ export function NotaFormulario({
 
     try {
       const resultado = nota
-        ? await editarNota(idObra, nota.id_nota, valores)
+        ? await editarNota(nota.id_nota, valores)
         : await crearNota(idObra, valores);
 
       onGuardada(resultado);

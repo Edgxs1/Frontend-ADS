@@ -69,7 +69,7 @@ export async function cambiarEstadoReporte(
   const response = await apiFetch(
     `/api/v1/obras/${idObra}/reportes/${idReporte}/estado`,
     {
-      method: "PATCH",
+      method: "PUT",
       body: JSON.stringify({ estado }),
     },
   );

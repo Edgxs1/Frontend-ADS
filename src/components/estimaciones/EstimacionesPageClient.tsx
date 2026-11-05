@@ -5,12 +5,10 @@ import Link from "next/link";
 import {
   AlertCircle,
   Calculator,
-  Check,
   Eye,
   Loader2,
   Plus,
   Send,
-  X,
 } from "lucide-react";
 import { useSupabaseSession } from "@/providers/supabase-provider";
 import { useObra } from "@/providers/obra-provider";
@@ -33,11 +31,8 @@ import {
 } from "@/components/ui/table";
 import { formatearFecha } from "@/lib/format";
 import {
-  autorizarEstimacion,
-  enviarAResidente,
-  enviarRevision,
+  cambiarEstadoEstimacion,
   getEstimaciones,
-  rechazarEstimacion,
 } from "@/services/estimacion";
 import type { Estimacion } from "@/types/estimacion";
 
@@ -46,7 +41,7 @@ interface DatosCargados {
   estimaciones: Estimacion[];
 }
 
-type Accion = "enviar" | "enviar_residente" | "autorizar" | "rechazar";
+type Accion = "presentar" | "revisar";
 
 export function EstimacionesPageClient() {
   const { rol } = useSupabaseSession();
@@ -96,28 +91,21 @@ export function EstimacionesPageClient() {
   const cargando = idObra !== null && datosValidos === null && error === null;
 
   const puedeCrear = rol === "Superintendente";
-  const puedeEnviarSupervisor = rol === "Superintendente";
-  const puedeEnviarResidente = rol === "Supervisor";
-  const puedeRevisar = rol === "Residente";
+  const puedePresentar = rol === "Supervisor";
+  const puedeCompletarRevision = rol === "Supervisor";
 
   const ejecutarAccion = async (
     estimacion: Estimacion,
     accion: Accion,
   ) => {
-    if (!idObra) return;
-
     setAccionError(null);
     setAccionEnCurso(`${estimacion.id_estimacion}:${accion}`);
 
     try {
-      const actualizada =
-        accion === "enviar"
-          ? await enviarRevision(idObra, estimacion.id_estimacion)
-          : accion === "enviar_residente"
-            ? await enviarAResidente(idObra, estimacion.id_estimacion)
-            : accion === "autorizar"
-              ? await autorizarEstimacion(idObra, estimacion.id_estimacion)
-              : await rechazarEstimacion(idObra, estimacion.id_estimacion);
+      const actualizada = await cambiarEstadoEstimacion(
+        estimacion.id_estimacion,
+        accion === "presentar" ? "Revisión" : "Autorización",
+      );
 
       setDatos((prev) =>
         prev
@@ -244,74 +232,38 @@ export function EstimacionesPageClient() {
                             </Link>
                           </Button>
 
-                          {puedeEnviarSupervisor &&
-                          estimacion.estado === "Borrador" ? (
+                          {puedePresentar &&
+                          estimacion.estado === "Presentación" ? (
                             <Button
                               size="sm"
                               className="gap-1.5"
                               disabled={ocupada}
-                              onClick={() => ejecutarAccion(estimacion, "enviar")}
+                              onClick={() => ejecutarAccion(estimacion, "presentar")}
                             >
-                              {accionEnCurso === `${id}:enviar` ? (
+                              {accionEnCurso === `${id}:presentar` ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               ) : (
                                 <Send className="h-3.5 w-3.5" />
                               )}
-                              Enviar a Supervisor
+                              Presentar Estimación
                             </Button>
                           ) : null}
 
-                          {puedeEnviarResidente &&
-                          estimacion.estado === "Revision Supervisor" ? (
+                          {puedeCompletarRevision &&
+                          estimacion.estado === "Revisión" ? (
                             <Button
                               size="sm"
                               className="gap-1.5"
                               disabled={ocupada}
-                              onClick={() =>
-                                ejecutarAccion(estimacion, "enviar_residente")
-                              }
+                              onClick={() => ejecutarAccion(estimacion, "revisar")}
                             >
-                              {accionEnCurso === `${id}:enviar_residente` ? (
+                              {accionEnCurso === `${id}:revisar` ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               ) : (
                                 <Send className="h-3.5 w-3.5" />
                               )}
-                              Enviar a Residente
+                              Completar Revisión
                             </Button>
-                          ) : null}
-
-                          {puedeRevisar &&
-                          estimacion.estado === "Revision Residente" ? (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-1.5 border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
-                                disabled={ocupada}
-                                onClick={() => ejecutarAccion(estimacion, "autorizar")}
-                              >
-                                {accionEnCurso === `${id}:autorizar` ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Check className="h-3.5 w-3.5" />
-                                )}
-                                Autorizar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-1.5 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
-                                disabled={ocupada}
-                                onClick={() => ejecutarAccion(estimacion, "rechazar")}
-                              >
-                                {accionEnCurso === `${id}:rechazar` ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <X className="h-3.5 w-3.5" />
-                                )}
-                                Rechazar
-                              </Button>
-                            </>
                           ) : null}
                         </div>
                       </TableCell>

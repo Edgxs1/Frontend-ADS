@@ -28,10 +28,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getCatalogosPorObra } from "@/services/catalogo";
-import { crearEstimacion } from "@/services/estimacion";
+import { getContrato } from "@/services/contrato";
+import { crearEstimacion, getEstimaciones } from "@/services/estimacion";
 import { formatearMoneda } from "@/lib/format";
-import { TIPOS_ESTIMACION } from "@/types/estimacion";
-import type { CrearEstimacionPayload, TipoEstimacion } from "@/types/estimacion";
+import {
+  TIPOS_CON_TOPES_25,
+  TIPOS_ESTIMACION,
+} from "@/types/estimacion";
+import type {
+  CrearEstimacionPayload,
+  Estimacion,
+  TipoEstimacion,
+} from "@/types/estimacion";
 import type { ConceptoConPartida } from "@/types";
 
 const detalleSchema = z.object({
@@ -46,6 +54,10 @@ const esquemaEstimacion = z
     tipo: z.enum(TIPOS_ESTIMACION, "Selecciona un tipo"),
     periodo_inicio: z.string().min(1, "Requerido"),
     periodo_fin: z.string().min(1, "Requerido"),
+    retencion_manual: z
+      .number("Requerido")
+      .min(0, "No puede ser negativo")
+      .optional(),
     conceptos: z.array(detalleSchema).min(1, "Agrega al menos un concepto"),
   })
   .refine((data) => data.periodo_fin >= data.periodo_inicio, {
@@ -68,9 +80,9 @@ const esquemaEstimacion = z
 type FormValues = z.infer<typeof esquemaEstimacion>;
 
 const ETIQUETAS_TIPO: Record<TipoEstimacion, string> = {
-  Ordinaria: "Ordinaria (Normal)",
-  Extraordinaria: "Extraordinaria",
-  Adicional: "Adicional",
+  Normal: "Normal",
+  Adicional: "Adicional (sujeta al tope del 25%)",
+  Extraordinaria: "Extraordinaria (sujeta al tope del 25%)",
 };
 
 function hoy(): string {
@@ -89,6 +101,10 @@ export function NuevaEstimacionPageClient() {
   const [cargandoCatalogos, setCargandoCatalogos] = useState(true);
   const [errorCatalogos, setErrorCatalogos] = useState<string | null>(null);
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
+  const [importeContrato, setImporteContrato] = useState<
+    number | null | undefined
+  >(undefined);
+  const [estimaciones, setEstimaciones] = useState<Estimacion[]>([]);
 
   const {
     register,
@@ -99,9 +115,10 @@ export function NuevaEstimacionPageClient() {
   } = useForm<FormValues>({
     resolver: zodResolver(esquemaEstimacion),
     defaultValues: {
-      tipo: "Ordinaria",
+      tipo: "Normal",
       periodo_inicio: "",
       periodo_fin: "",
+      retencion_manual: 0,
       conceptos: [{ id_concepto: "", cantidad: 0 }],
     },
   });
@@ -112,6 +129,26 @@ export function NuevaEstimacionPageClient() {
   });
 
   const conceptosSeleccionados = watch("conceptos");
+  const tipoSeleccionado = watch("tipo");
+
+  useEffect(() => {
+    if (!idObra) return;
+
+    let activo = true;
+
+    Promise.all([
+      getContrato(idObra).catch(() => null),
+      getEstimaciones(idObra).catch(() => []),
+    ]).then(([contrato, lista]) => {
+      if (!activo) return;
+      setImporteContrato(contrato?.importe_contrato ?? null);
+      setEstimaciones(lista);
+    });
+
+    return () => {
+      activo = false;
+    };
+  }, [idObra]);
 
   useEffect(() => {
     if (!idObra) return;
@@ -171,16 +208,44 @@ export function NuevaEstimacionPageClient() {
     });
   }, [conceptosSeleccionados, catalogoPorId]);
 
+  const tipoConTope25 = TIPOS_CON_TOPES_25.includes(tipoSeleccionado);
+
+  const acumuladoAdicionalAprobado = useMemo(
+    () =>
+      estimaciones
+        .filter(
+          (estimacion) =>
+            estimacion.estado === "Aprobada" &&
+            TIPOS_CON_TOPES_25.includes(estimacion.tipo),
+        )
+        .reduce(
+          (total, estimacion) =>
+            total + (estimacion.importe_estimacion_actual ?? 0),
+          0,
+        ),
+    [estimaciones],
+  );
+
+  const tope25 =
+    typeof importeContrato === "number" ? importeContrato * 0.25 : null;
+
+  const excedeTope25 =
+    tipoConTope25 &&
+    tope25 !== null &&
+    acumuladoAdicionalAprobado + totalLocal > tope25;
+
   const onSubmit = handleSubmit(async (valores) => {
     if (!idObra) return;
 
     setErrorServidor(null);
 
     const payload: CrearEstimacionPayload = {
+      id_obra: idObra,
       tipo: valores.tipo,
       fecha: hoy(),
       periodo_inicio: valores.periodo_inicio,
       periodo_fin: valores.periodo_fin,
+      retencion_manual: valores.retencion_manual ?? 0,
       conceptos: valores.conceptos.map((concepto) => ({
         id_concepto: concepto.id_concepto,
         cantidad: concepto.cantidad,
@@ -260,7 +325,7 @@ export function NuevaEstimacionPageClient() {
               Define el tipo de estimación y el periodo que cubre.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <Label htmlFor="tipo">Tipo de estimación</Label>
               <select
@@ -299,6 +364,25 @@ export function NuevaEstimacionPageClient() {
               {errors.periodo_fin ? (
                 <p className="mt-1 text-xs text-red-600">
                   {errors.periodo_fin.message}
+                </p>
+              ) : null}
+            </div>
+
+            <div>
+              <Label htmlFor="retencion_manual">Retención manual (MXN)</Label>
+              <Input
+                id="retencion_manual"
+                type="number"
+                step="0.01"
+                min="0"
+                {...register("retencion_manual", { valueAsNumber: true })}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                RF3.12.6. Se descuenta del neto a recibir.
+              </p>
+              {errors.retencion_manual ? (
+                <p className="mt-1 text-xs text-red-600">
+                  {errors.retencion_manual.message}
                 </p>
               ) : null}
             </div>
@@ -390,7 +474,9 @@ export function NuevaEstimacionPageClient() {
                     </div>
 
                     <div className="md:col-span-3">
-                      <Label htmlFor={`cantidad-${index}`}>Cantidad</Label>
+                      <Label htmlFor={`cantidad-${index}`}>
+                        Cantidad estimada actual
+                      </Label>
                       <Input
                         id={`cantidad-${index}`}
                         type="number"
@@ -490,11 +576,47 @@ export function NuevaEstimacionPageClient() {
           </div>
         ) : null}
 
+        {tipoConTope25 && importeContrato !== undefined ? (
+          <div
+            className={`flex items-start gap-2 rounded-xl border p-4 text-sm ${
+              excedeTope25
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-amber-200 bg-amber-50 text-amber-800"
+            }`}
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            {tope25 === null ? (
+              <span>
+                No hay un contrato registrado para validar la regla del 25%.
+                El servidor podría rechazar esta estimación{" "}
+                {tipoSeleccionado.toLowerCase()}.
+              </span>
+            ) : (
+              <span>
+                RF3.11 — Regla del 25%: acumulado aprobado{" "}
+                <strong>{formatearMoneda(acumuladoAdicionalAprobado)}</strong> +
+                esta estimación <strong>{formatearMoneda(totalLocal)}</strong> ={" "}
+                <strong>
+                  {formatearMoneda(acumuladoAdicionalAprobado + totalLocal)}
+                </strong>{" "}
+                / tope <strong>{formatearMoneda(tope25)}</strong>.{" "}
+                {excedeTope25
+                  ? "La estimación excede el tope permitido y no puede enviarse."
+                  : "Dentro del tope permitido."}
+              </span>
+            )}
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Button asChild variant="outline">
             <Link href="/dashboard/estimaciones">Cancelar</Link>
           </Button>
-          <Button type="submit" disabled={isSubmitting} className="gap-2">
+          <Button
+            type="submit"
+            disabled={isSubmitting || excedeTope25}
+            className="gap-2"
+          >
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : null}

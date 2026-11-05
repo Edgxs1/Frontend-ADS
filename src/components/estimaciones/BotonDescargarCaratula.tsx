@@ -4,22 +4,34 @@ import { PDFDownloadLink } from "@react-pdf/renderer";
 import { Download, Loader2 } from "lucide-react";
 import { CaratulaPDF } from "@/components/estimaciones/CaratulaPDF";
 import { Button } from "@/components/ui/button";
-import type { CaratulaOficial } from "@/types/estimacion";
+import type { ContratoConContratista } from "@/types";
+import type { CaratulaOficial, ResumenPartida } from "@/types/estimacion";
 
 interface BotonDescargarCaratulaProps {
   caratula: CaratulaOficial;
   nombreObra: string;
+  contrato: ContratoConContratista | null;
+  resumenPartidas: ResumenPartida[];
 }
 
 export function BotonDescargarCaratula({
   caratula,
   nombreObra,
+  contrato,
+  resumenPartidas,
 }: BotonDescargarCaratulaProps) {
   const nombreArchivo = `Caratula-${caratula.estimacion.folio}.pdf`;
 
   return (
     <PDFDownloadLink
-      document={<CaratulaPDF caratula={caratula} nombreObra={nombreObra} />}
+      document={
+        <CaratulaPDF
+          caratula={caratula}
+          nombreObra={nombreObra}
+          contrato={contrato}
+          resumenPartidas={resumenPartidas}
+        />
+      }
       fileName={nombreArchivo}
     >
       {({ loading, error }) => (
@@ -33,7 +45,7 @@ export function BotonDescargarCaratula({
           ) : (
             <Download aria-hidden="true" />
           )}
-          {loading ? "Generando PDF…" : "Descargar Carátula PDF"}
+          {loading ? "Generando PDF…" : "Exportar a PDF"}
         </Button>
       )}
     </PDFDownloadLink>

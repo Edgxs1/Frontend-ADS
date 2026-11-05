@@ -6,7 +6,6 @@ import {
   BookOpen,
   CheckCircle2,
   Clock,
-  FileText,
   Loader2,
   Lock,
   Pencil,
@@ -40,6 +39,7 @@ export function DatosBitacora() {
   const [firmandoId, setFirmandoId] = useState<string | null>(null);
   const [passwordFirma, setPasswordFirma] = useState("");
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<"todas" | "pendientes">("todas");
 
   const idObra = obraActiva?.id_obra ?? null;
   const idUsuario = usuario?.id_usuario ?? null;
@@ -55,16 +55,24 @@ export function DatosBitacora() {
     getNotas(idSolicitada)
       .then((notas) => {
         if (activo) {
-          setDatos({ idObra: idSolicitada, notas, error: null });
+          setDatos((prev) => {
+            if (prev && prev.idObra === idSolicitada && prev.notas?.length) {
+              return { ...prev, notas };
+            }
+            return { idObra: idSolicitada, notas, error: null };
+          });
         }
       })
       .catch((err: unknown) => {
         if (activo) {
-          setDatos({
-            idObra: idSolicitada,
-            notas: [],
-            error:
-              err instanceof Error ? err.message : "Ocurrió un error inesperado.",
+          setDatos((prev) => {
+            if (prev && prev.idObra === idSolicitada && prev.notas?.length) return prev;
+            return {
+              idObra: idSolicitada,
+              notas: [],
+              error:
+                err instanceof Error ? err.message : "Ocurrió un error inesperado.",
+            };
           });
         }
       });
@@ -87,10 +95,34 @@ export function DatosBitacora() {
   const esSuperintendente = rol === "Superintendente";
   const esSupervisor = rol === "Supervisor";
   const esResidente = rol === "Residente";
+  const idRol = usuario?.id_rol;
+  const rolNombre = (rol || usuario?.rol || "").toString().toLowerCase();
+
+  const columnaFirmaPorRol = useMemo(() => {
+    if (Number(idRol) === 2 || rolNombre.includes("superintendente")) {
+      return "firma_superintendente" as const;
+    }
+    if (Number(idRol) === 3 || rolNombre.includes("supervisor")) {
+      return "firma_supervisor" as const;
+    }
+    if (Number(idRol) === 4 || rolNombre.includes("residente")) {
+      return "firma_residente" as const;
+    }
+    return null;
+  }, [idRol, rolNombre]);
+
+  const notasPendientes = useMemo(() => {
+    if (!columnaFirmaPorRol) return [];
+    return notas.filter(
+      (nota) => nota.estado !== "Completada" && !nota[columnaFirmaPorRol],
+    );
+  }, [notas, columnaFirmaPorRol]);
+
+  const notasVisibles = filtro === "pendientes" ? notasPendientes : notas;
 
   function actualizarNota(actualizada: NotaBitacora) {
     setDatos((prev) => {
-      if (!prev || prev.idObra !== actualizada.id_obra) return prev;
+      if (!prev) return prev;
       return {
         ...prev,
         notas: prev.notas.map((nota) =>
@@ -129,11 +161,6 @@ export function DatosBitacora() {
       setOcupada(null);
     }
   };
-
-  async function manejarFirmar(nota: NotaBitacora) {
-    if (!obraActiva) return;
-    abrirFirmar(nota.id_nota);
-  }
 
   async function manejarEliminar(nota: NotaBitacora) {
     if (!obraActiva) return;
@@ -194,6 +221,41 @@ export function DatosBitacora() {
         </button>
       </header>
 
+      {!cargando && !error && notas.length > 0 && columnaFirmaPorRol ? (
+        <div
+          role="tablist"
+          aria-label="Filtro de notas de bitácora"
+          className="flex flex-wrap gap-2"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={filtro === "todas"}
+            onClick={() => setFiltro("todas")}
+            className={`rounded-xl px-3 py-1.5 text-sm font-medium transition ${
+              filtro === "todas"
+                ? "bg-slate-900 text-white"
+                : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            Todas ({notas.length})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={filtro === "pendientes"}
+            onClick={() => setFiltro("pendientes")}
+            className={`rounded-xl px-3 py-1.5 text-sm font-medium transition ${
+              filtro === "pendientes"
+                ? "bg-slate-900 text-white"
+                : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            Mis Pendientes de Firma ({notasPendientes.length})
+          </button>
+        </div>
+      ) : null}
+
       {errorAccion ? (
         <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
@@ -228,25 +290,35 @@ export function DatosBitacora() {
         </div>
       ) : null}
 
-      {!cargando && !error && notas.length > 0 ? (
+      {!cargando && !error && notas.length > 0 && notasVisibles.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+          <p className="text-sm text-slate-500">
+            No tienes notas pendientes de firma.
+          </p>
+        </div>
+      ) : null}
+
+      {!cargando && !error && notasVisibles.length > 0 ? (
         <ol className="relative space-y-4 border-l border-slate-200 pl-6">
-          {notas.map((nota) => {
-            const abierta = nota.estado === "Abierta";
+          {notasVisibles.map((nota) => {
+            const completada = nota.estado === "Completada";
             const esCreador = idUsuario !== null && nota.id_creador === idUsuario;
-            const tieneAlgunaFirma =
-              Boolean(nota.firma_superintendente) ||
-              Boolean(nota.firma_supervisor) ||
-              Boolean(nota.firma_residente);
             const tieneAlgunaFirmaNota =
               Boolean(nota.firma_superintendente) ||
               Boolean(nota.firma_supervisor) ||
               Boolean(nota.firma_residente);
-            const puedeEditar = abierta && !tieneAlgunaFirmaNota && esCreador;
-            const puedeFirmar =
-              abierta &&
-              ((esSuperintendente && !nota.firma_superintendente) ||
-                (esSupervisor && !nota.firma_supervisor) ||
-                (esResidente && !nota.firma_residente));
+            const puedeEditar = esCreador && !tieneAlgunaFirmaNota;
+
+            const canSign =
+              !completada &&
+              !esAdmin &&
+              (((Number(idRol) === 2 || rolNombre.includes("superintendente")) &&
+                !nota.firma_superintendente) ||
+                ((Number(idRol) === 3 || rolNombre.includes("supervisor")) &&
+                  !nota.firma_supervisor) ||
+                ((Number(idRol) === 4 || rolNombre.includes("residente")) &&
+                  !nota.firma_residente));
+
             const bloqueada = ocupada === nota.id_nota;
             const firmadaPorSuperintendente = Boolean(nota.firma_superintendente);
             const firmadaPorSupervisor = Boolean(nota.firma_supervisor);
@@ -256,7 +328,7 @@ export function DatosBitacora() {
               <li key={nota.id_nota} className="relative">
                 <span
                   className={`absolute -left-[31px] top-4 flex h-4 w-4 items-center justify-center rounded-full ring-4 ring-slate-50 ${
-                    abierta ? "bg-amber-400" : "bg-emerald-500"
+                    completada ? "bg-emerald-500" : "bg-amber-400"
                   }`}
                   aria-hidden="true"
                 />
@@ -292,7 +364,7 @@ export function DatosBitacora() {
                           <div>
                             <p className="text-sm font-medium text-slate-900">Superintendente</p>
                             <p className="text-xs text-slate-600">
-                              {firmadaPorSuperintendente ? "Firmado" : "Pendiente de firma"}
+                              {firmadaPorSuperintendente ? "Firmado" : "Pendiente firma de Superintendente"}
                             </p>
                             {firmadaPorSuperintendente && nota.firma_superintendente ? (
                               <p className="mt-1 text-xs text-slate-500">
@@ -321,7 +393,7 @@ export function DatosBitacora() {
                           <div>
                             <p className="text-sm font-medium text-slate-900">Supervisor</p>
                             <p className="text-xs text-slate-600">
-                              {firmadaPorSupervisor ? "Firmado" : "Pendiente de firma"}
+                              {firmadaPorSupervisor ? "Firmado" : "Pendiente firma de Supervisor"}
                             </p>
                             {firmadaPorSupervisor && nota.firma_supervisor ? (
                               <p className="mt-1 text-xs text-slate-500">
@@ -350,7 +422,7 @@ export function DatosBitacora() {
                           <div>
                             <p className="text-sm font-medium text-slate-900">Residente</p>
                             <p className="text-xs text-slate-600">
-                              {firmadaPorResidente ? "Firmado" : "Pendiente de firma"}
+                              {firmadaPorResidente ? "Firmado" : "Pendiente firma de Residente"}
                             </p>
                             {firmadaPorResidente && nota.firma_residente ? (
                               <p className="mt-1 text-xs text-slate-500">
@@ -372,7 +444,7 @@ export function DatosBitacora() {
                     </div>
                   </div>
 
-                  {(abierta && (puedeEditar || puedeFirmar)) ? (
+                  {!completada && (puedeEditar || canSign) ? (
                     <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
                       {puedeEditar ? (
                         <>
@@ -401,10 +473,10 @@ export function DatosBitacora() {
                         </>
                       ) : null}
 
-                      {puedeFirmar ? (
+                      {canSign ? (
                         <button
                           type="button"
-                          onClick={() => manejarFirmar(nota)}
+                          onClick={() => abrirFirmar(nota.id_nota)}
                           disabled={bloqueada}
                           className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
                         >

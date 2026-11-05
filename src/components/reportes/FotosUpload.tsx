@@ -6,7 +6,8 @@ import { subirFotos } from "@/services/reporte";
 import type { FotoReporte } from "@/types";
 
 const MAX_FOTOS = 6;
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_MB = 5;
 
 interface FotosUploadProps {
   idObra: string;
@@ -43,7 +44,7 @@ export function FotosUpload({
       const demasiadoGrande = lista.find((file) => file.size > MAX_BYTES);
 
       if (demasiadoGrande) {
-        setError(`"${demasiadoGrande.name}" supera el límite de 10 MB.`);
+        setError(`"${demasiadoGrande.name}" supera el límite de ${MAX_MB} MB.`);
         return;
       }
 
@@ -79,7 +80,7 @@ export function FotosUpload({
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="font-semibold text-slate-900">Adjuntar evidencia fotográfica</h2>
       <p className="mt-1 text-sm text-slate-500">
-        Puedes adjuntar hasta {MAX_FOTOS} imágenes (máx. 10 MB cada una). Te quedan{" "}
+        Puedes adjuntar hasta {MAX_FOTOS} imágenes (máx. {MAX_MB} MB cada una). Te quedan{" "}
         {restantes}.
       </p>
 

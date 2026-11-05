@@ -31,6 +31,25 @@ export interface PerfilUsuario {
   activo: boolean;
 }
 
+const ROL_POR_ID: Record<number, Rol> = {
+  1: "Administrador",
+  2: "Superintendente",
+  3: "Supervisor",
+  4: "Residente",
+  5: "Directivo",
+};
+
+function normalizarPerfil(perfil: PerfilUsuario): PerfilUsuario {
+  if (perfil.rol) {
+    return perfil;
+  }
+
+  return {
+    ...perfil,
+    rol: perfil.id_rol != null ? ROL_POR_ID[perfil.id_rol] ?? null : null,
+  };
+}
+
 interface SupabaseContextValue {
   supabase: SupabaseClient;
   session: Session | null;
@@ -61,18 +80,18 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       const response = await apiFetch("/api/v1/usuarios/me");
 
       if (!response.ok) {
-        usuarioRef.current = null;
-        setUsuario(null);
+        setLoadingPerfil(false);
         return;
       }
 
       const body = await response.json().catch(() => null);
       const perfil = (body?.data as PerfilUsuario) ?? null;
-      usuarioRef.current = perfil;
-      setUsuario(perfil);
+      if (perfil) {
+        const normalizado = normalizarPerfil(perfil);
+        usuarioRef.current = normalizado;
+        setUsuario(normalizado);
+      }
     } catch {
-      usuarioRef.current = null;
-      setUsuario(null);
     } finally {
       setLoadingPerfil(false);
     }
@@ -88,7 +107,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         setSession(data.session);
         setLoading(false);
         if (data.session) {
-          void cargarPerfil();
+          void cargarPerfil(true);
         }
       })
       .catch(() => {
@@ -97,15 +116,10 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
     const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (event === "SIGNED_IN") {
-        const esMismoUsuario =
-          newSession?.user.id != null &&
-          newSession.user.id === usuarioRef.current?.id_usuario;
-
         setSession(newSession);
         setLoading(false);
-
-        if (newSession && !esMismoUsuario) {
-          void cargarPerfil();
+        if (newSession) {
+          void cargarPerfil(true);
         }
         return;
       }
@@ -115,6 +129,22 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         setSession(null);
         setUsuario(null);
         setLoading(false);
+        return;
+      }
+
+      if (event === "TOKEN_REFRESHED") {
+        if (newSession) {
+          setSession(newSession);
+        }
+        return;
+      }
+
+      if (event === "INITIAL_SESSION") {
+        if (newSession) {
+          setSession(newSession);
+          setLoading(false);
+          void cargarPerfil(true);
+        }
         return;
       }
     });
@@ -132,7 +162,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
     const intervalo = setInterval(() => {
       void cargarPerfil(false);
-    }, 20000);
+    }, 30000);
 
     const alRecuperarFoco = () => {
       if (document.visibilityState === "visible") {
@@ -150,6 +180,15 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     };
   }, [session, cargarPerfil]);
 
+  const signOut = useCallback(async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch {}
+    usuarioRef.current = null;
+    setSession(null);
+    setUsuario(null);
+  }, []);
+
   const value = useMemo<SupabaseContextValue>(
     () => ({
       supabase,
@@ -159,12 +198,10 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       rol: usuario?.rol ?? null,
       loading,
       loadingPerfil,
-      signOut: async () => {
-        await supabase.auth.signOut();
-      },
-      refrescarPerfil: cargarPerfil,
+      signOut,
+      refrescarPerfil: () => cargarPerfil(false),
     }),
-    [session, usuario, loading, loadingPerfil, cargarPerfil],
+    [session, usuario, loading, loadingPerfil, cargarPerfil, signOut],
   );
 
   return <SupabaseContext.Provider value={value}>{children}</SupabaseContext.Provider>;

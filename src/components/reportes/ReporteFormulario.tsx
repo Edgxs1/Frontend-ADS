@@ -19,6 +19,7 @@ interface CatalogoConcepto {
   cantidad?: number;
 }
 
+const ESTADOS_TIPO_DIA = ["Laborado", "No laborado"] as const;
 const ESTADOS_TIEMPO = ["Soleado", "Nublado", "Lluvia moderada", "Lluvia intensa"] as const;
 const ESTADOS_SEÑALAMIENTO = ["Buen estado", "Mal estado", "Suficiente", "Insuficiente"] as const;
 const ESTADOS_EPP = ["Completo", "Incompleto", "Suficiente", "Insuficiente"] as const;
@@ -29,6 +30,7 @@ const esquemaReporte = z.object({
   actividades_realizadas: z.string().optional().or(z.literal("")),
   notas_relevantes: z.string().optional().or(z.literal("")),
   hora_lluvia: z.string().optional().or(z.literal("")),
+  tipo_dia: z.string().optional().or(z.literal("")),
   estado_tiempo: z.string().optional().or(z.literal("")),
   senalamiento_preventivo: z.string().optional().or(z.literal("")),
   equipo_proteccion: z.string().optional().or(z.literal("")),
@@ -63,6 +65,7 @@ const VALORES_INICIALES: FormValues = {
   actividades_realizadas: "",
   notas_relevantes: "",
   hora_lluvia: "",
+  tipo_dia: undefined,
   estado_tiempo: undefined,
   senalamiento_preventivo: undefined,
   equipo_proteccion: undefined,
@@ -215,7 +218,11 @@ export function ReporteFormulario({
       const payload = {
         actividades_realizadas: limpiar(valores.actividades_realizadas),
         notas_relevantes: limpiar(valores.notas_relevantes),
-        hora_lluvia: limpiar(valores.hora_lluvia),
+        hora_lluvia:
+          valores.hora_lluvia === "" || valores.hora_lluvia == null
+            ? undefined
+            : Number(valores.hora_lluvia),
+        tipo_dia: limpiar(valores.tipo_dia) as any,
         estado_tiempo: limpiar(valores.estado_tiempo) as any,
         senalamiento_preventivo: limpiar(valores.senalamiento_preventivo) as any,
         equipo_proteccion: limpiar(valores.equipo_proteccion) as any,
@@ -293,10 +300,13 @@ export function ReporteFormulario({
             </label>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-slate-700">Hora de lluvia</span>
+                <span className="mb-1 block text-sm font-medium text-slate-700">Horas de lluvia</span>
                 <input
+                  type="number"
+                  step="0.01"
+                  min={0}
                   {...register("hora_lluvia")}
-                  placeholder="HH:MM"
+                  placeholder="0"
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
                 />
               </label>
@@ -323,6 +333,13 @@ export function ReporteFormulario({
           <section className="space-y-4">
             <h3 className="text-sm font-semibold text-slate-900">Condiciones de la jornada</h3>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-700">Tipo de día</span>
+                <select {...register("tipo_dia")} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10">
+                  <option value="">Seleccionar</option>
+                  {ESTADOS_TIPO_DIA.map((o) => (<option key={o} value={o}>{o}</option>))}
+                </select>
+              </label>
               <label className="block">
                 <span className="mb-1 block text-sm font-medium text-slate-700">Estado del tiempo</span>
                 <select {...register("estado_tiempo")} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10">

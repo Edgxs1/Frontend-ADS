@@ -1,4 +1,4 @@
-export type EstadoNota = "Abierta" | "Firmada";
+export type EstadoNota = "Abierta" | "Pendiente de Firma" | "Completada";
 
 export interface NotaBitacora {
   id_nota: string;

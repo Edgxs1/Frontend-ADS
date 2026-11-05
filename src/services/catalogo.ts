@@ -41,3 +41,60 @@ export async function crearConcepto(
   const body = (await response.json()) as { data: Concepto };
   return body.data;
 }
+
+export async function actualizarConcepto(
+  idObra: string,
+  idConcepto: string,
+  data: CrearConceptoInput,
+): Promise<Concepto> {
+  const response = await apiFetch(
+    `/api/v1/obras/${idObra}/catalogos/${idConcepto}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+  );
+
+  if (!response.ok) {
+    let mensaje = "No se pudo actualizar el concepto.";
+
+    try {
+      const errBody = (await response.json()) as { error?: { message?: string } };
+      if (errBody?.error?.message) {
+        mensaje = errBody.error.message;
+      }
+    } catch {
+      // respuesta sin cuerpo JSON
+    }
+
+    throw new Error(mensaje);
+  }
+
+  const body = (await response.json()) as { data: Concepto };
+  return body.data;
+}
+
+export async function eliminarConcepto(
+  idObra: string,
+  idConcepto: string,
+): Promise<void> {
+  const response = await apiFetch(
+    `/api/v1/obras/${idObra}/catalogos/${idConcepto}`,
+    { method: "DELETE" },
+  );
+
+  if (!response.ok) {
+    let mensaje = "No se pudo eliminar el concepto.";
+
+    try {
+      const errBody = (await response.json()) as { error?: { message?: string } };
+      if (errBody?.error?.message) {
+        mensaje = errBody.error.message;
+      }
+    } catch {
+      // respuesta sin cuerpo JSON
+    }
+
+    throw new Error(mensaje);
+  }
+}

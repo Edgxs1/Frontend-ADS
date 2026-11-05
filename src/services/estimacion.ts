@@ -2,6 +2,7 @@ import { apiFetch, leerMensajeError } from "@/lib/api";
 import type {
   CaratulaOficial,
   CrearEstimacionPayload,
+  EstadoEstimacion,
   Estimacion,
 } from "@/types/estimacion";
 
@@ -20,7 +21,7 @@ async function leerData<T>(response: Response, fallback: string): Promise<T> {
 }
 
 export async function getEstimaciones(idObra: string): Promise<Estimacion[]> {
-  const response = await apiFetch(`/api/v1/obras/${idObra}/estimaciones`);
+  const response = await apiFetch(`/api/v1/estimaciones/${idObra}`);
   const data = await leerData<Estimacion[]>(
     response,
     "No se pudieron obtener las estimaciones.",
@@ -33,66 +34,55 @@ export async function crearEstimacion(
   idObra: string,
   payload: CrearEstimacionPayload,
 ): Promise<Estimacion> {
-  const response = await apiFetch(`/api/v1/obras/${idObra}/estimaciones`, {
+  const response = await apiFetch("/api/v1/estimaciones", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, id_obra: payload.id_obra ?? idObra }),
   });
 
   return leerData<Estimacion>(response, "No se pudo crear la estimación.");
 }
 
-export async function enviarRevision(
-  idObra: string,
+export async function cambiarEstadoEstimacion(
   idEstimacion: string,
+  estado: EstadoEstimacion,
 ): Promise<Estimacion> {
-  const response = await apiFetch(
-    `/api/v1/obras/${idObra}/estimaciones/${idEstimacion}/enviar-supervisor`,
-    { method: "PATCH" },
-  );
+  const response = await apiFetch(`/api/v1/estimaciones/${idEstimacion}/estado`, {
+    method: "PUT",
+    body: JSON.stringify({ estado }),
+  });
 
   return leerData<Estimacion>(
     response,
-    "No se pudo enviar la estimación a revisión.",
+    "No se pudo actualizar el estado de la estimación.",
   );
+}
+
+export async function enviarRevision(
+  _idObra: string,
+  idEstimacion: string,
+): Promise<Estimacion> {
+  return cambiarEstadoEstimacion(idEstimacion, "Revisión");
 }
 
 export async function enviarAResidente(
-  idObra: string,
+  _idObra: string,
   idEstimacion: string,
 ): Promise<Estimacion> {
-  const response = await apiFetch(
-    `/api/v1/obras/${idObra}/estimaciones/${idEstimacion}/enviar-residente`,
-    { method: "PATCH" },
-  );
-
-  return leerData<Estimacion>(
-    response,
-    "No se pudo enviar la estimación al Residente.",
-  );
+  return cambiarEstadoEstimacion(idEstimacion, "Autorización");
 }
 
 export async function autorizarEstimacion(
-  idObra: string,
+  _idObra: string,
   idEstimacion: string,
 ): Promise<Estimacion> {
-  const response = await apiFetch(
-    `/api/v1/obras/${idObra}/estimaciones/${idEstimacion}/autorizar`,
-    { method: "PATCH" },
-  );
-
-  return leerData<Estimacion>(response, "No se pudo autorizar la estimación.");
+  return cambiarEstadoEstimacion(idEstimacion, "Aprobada");
 }
 
 export async function rechazarEstimacion(
-  idObra: string,
+  _idObra: string,
   idEstimacion: string,
 ): Promise<Estimacion> {
-  const response = await apiFetch(
-    `/api/v1/obras/${idObra}/estimaciones/${idEstimacion}/rechazar`,
-    { method: "PATCH" },
-  );
-
-  return leerData<Estimacion>(response, "No se pudo rechazar la estimación.");
+  return cambiarEstadoEstimacion(idEstimacion, "Rechazada");
 }
 
 export async function getCaratulaOficial(

@@ -190,7 +190,11 @@ export function DatosReporteDetalle({ idReporte }: DatosReporteDetalleProps) {
             <p className="mt-1 text-sm text-slate-600">{reporte.estado_tiempo ?? "—"}</p>
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Hora de lluvia</h2>
+            <h2 className="text-sm font-semibold text-slate-900">Tipo de día</h2>
+            <p className="mt-1 text-sm text-slate-600">{reporte.tipo_dia ?? "—"}</p>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Horas de lluvia</h2>
             <p className="mt-1 text-sm text-slate-600">{reporte.hora_lluvia ?? "—"}</p>
           </div>
           <div>

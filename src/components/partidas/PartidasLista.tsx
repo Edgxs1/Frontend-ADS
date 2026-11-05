@@ -1,8 +1,21 @@
 "use client";
 
+import { Pencil, Trash2 } from "lucide-react";
 import type { Partida } from "@/types";
 
-export function PartidasLista({ partidas }: { partidas: Partida[] }) {
+interface PartidasListaProps {
+  partidas: Partida[];
+  puedeGestionar?: boolean;
+  onEditar?: (partida: Partida) => void;
+  onEliminar?: (partida: Partida) => void;
+}
+
+export function PartidasLista({
+  partidas,
+  puedeGestionar = false,
+  onEditar,
+  onEliminar,
+}: PartidasListaProps) {
   if (partidas.length === 0) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
@@ -26,6 +39,11 @@ export function PartidasLista({ partidas }: { partidas: Partida[] }) {
               <th className="px-5 py-2 text-left font-medium uppercase tracking-wide text-slate-400">
                 Descripción
               </th>
+              {puedeGestionar ? (
+                <th className="px-5 py-2 text-right font-medium uppercase tracking-wide text-slate-400">
+                  Acciones
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
@@ -35,6 +53,28 @@ export function PartidasLista({ partidas }: { partidas: Partida[] }) {
                   {partida.clave}
                 </td>
                 <td className="px-5 py-3 text-slate-600">{partida.descripcion}</td>
+                {puedeGestionar ? (
+                  <td className="whitespace-nowrap px-5 py-3 text-right">
+                    <div className="flex justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => onEditar?.(partida)}
+                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                        aria-label={`Editar partida ${partida.clave}`}
+                      >
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onEliminar?.(partida)}
+                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                        aria-label={`Eliminar partida ${partida.clave}`}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>

@@ -2,12 +2,23 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, BookOpen, Loader2 } from "lucide-react";
-import { getCatalogosPorObra } from "@/services/catalogo";
+import { eliminarConcepto, getCatalogosPorObra } from "@/services/catalogo";
 import { useSupabaseSession } from "@/providers/supabase-provider";
 import { useObra } from "@/providers/obra-provider";
 import { SinObraSeleccionada } from "@/components/common/SinObraSeleccionada";
 import { ConceptoFormulario } from "./ConceptoFormulario";
+import { ConceptoEditarDialog } from "./ConceptoEditarDialog";
 import { CatalogoTabla } from "./CatalogoTabla";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TIPOS_CONCEPTO } from "@/types";
 import type { ConceptoConPartida, TipoConcepto } from "@/types";
 
@@ -22,6 +33,12 @@ export function DatosCatalogos() {
   const { rol } = useSupabaseSession();
   const [datos, setDatos] = useState<DatosCargados | null>(null);
   const [tipoActivo, setTipoActivo] = useState<TipoConcepto>("Normal");
+  const [conceptoEditando, setConceptoEditando] =
+    useState<ConceptoConPartida | null>(null);
+  const [conceptoEliminando, setConceptoEliminando] =
+    useState<ConceptoConPartida | null>(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [errorAccion, setErrorAccion] = useState<string | null>(null);
 
   const idObra = obraActiva?.id_obra ?? null;
 
@@ -64,6 +81,63 @@ export function DatosCatalogos() {
   const conceptos = useMemo(() => datosValidos?.conceptos ?? [], [datosValidos]);
   const error = datosValidos?.error ?? null;
   const puedeCrear = rol === "Administrador" || rol === "Superintendente";
+
+  function manejarGuardada(actualizado: ConceptoConPartida) {
+    setDatos((prev) => {
+      if (!prev || prev.idObra !== actualizado.id_obra) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        conceptos: prev.conceptos
+          .map((concepto) =>
+            concepto.id_concepto === actualizado.id_concepto
+              ? actualizado
+              : concepto,
+          )
+          .sort((a, b) => a.clave.localeCompare(b.clave)),
+      };
+    });
+    setTipoActivo(actualizado.tipo);
+    setConceptoEditando(null);
+  }
+
+  async function confirmarEliminar() {
+    if (!conceptoEliminando) {
+      return;
+    }
+
+    setEliminando(true);
+    setErrorAccion(null);
+
+    try {
+      await eliminarConcepto(
+        conceptoEliminando.id_obra,
+        conceptoEliminando.id_concepto,
+      );
+      setDatos((prev) => {
+        if (!prev || prev.idObra !== conceptoEliminando.id_obra) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          conceptos: prev.conceptos.filter(
+            (concepto) =>
+              concepto.id_concepto !== conceptoEliminando.id_concepto,
+          ),
+        };
+      });
+      setConceptoEliminando(null);
+    } catch (err) {
+      setErrorAccion(
+        err instanceof Error ? err.message : "Ocurrió un error inesperado.",
+      );
+    } finally {
+      setEliminando(false);
+    }
+  }
 
   const conteos = useMemo(
     () =>
@@ -132,6 +206,13 @@ export function DatosCatalogos() {
         </div>
       ) : null}
 
+      {!cargando && errorAccion ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <span>{errorAccion}</span>
+        </div>
+      ) : null}
+
       {!cargando && !error ? (
         <>
           <div
@@ -173,9 +254,64 @@ export function DatosCatalogos() {
           <CatalogoTabla
             titulo={`Conceptos — ${tipoActivo}`}
             conceptos={conceptosVisibles}
+            puedeGestionar={puedeCrear}
+            onEditar={(concepto) => {
+              setErrorAccion(null);
+              setConceptoEditando(concepto);
+            }}
+            onEliminar={(concepto) => {
+              setErrorAccion(null);
+              setConceptoEliminando(concepto);
+            }}
           />
         </>
       ) : null}
+
+      {conceptoEditando ? (
+        <ConceptoEditarDialog
+          concepto={conceptoEditando}
+          onCerrar={() => setConceptoEditando(null)}
+          onGuardada={manejarGuardada}
+        />
+      ) : null}
+
+      <AlertDialog
+        open={conceptoEliminando !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto && !eliminando) {
+            setConceptoEliminando(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar concepto</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Seguro que deseas eliminar el concepto{" "}
+              <span className="font-medium text-slate-900">
+                {conceptoEliminando?.clave}
+              </span>
+              ? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={eliminando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmarEliminar();
+              }}
+              disabled={eliminando}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {eliminando ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : null}
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

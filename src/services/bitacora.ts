@@ -34,12 +34,11 @@ export async function crearNota(
 }
 
 export async function editarNota(
-  idObra: string,
   idNota: string,
   data: EditarNotaInput,
 ): Promise<NotaBitacora> {
-  const response = await apiFetch(`/api/v1/obras/${idObra}/bitacora/${idNota}`, {
-    method: "PATCH",
+  const response = await apiFetch(`/api/v1/bitacora/${idNota}`, {
+    method: "PUT",
     body: JSON.stringify(data),
   });
 
@@ -72,12 +71,13 @@ export async function firmarNota(
   idObra: string,
   idNota: string,
 ): Promise<NotaBitacora> {
-  const response = await apiFetch(
-    `/api/v1/obras/${idObra}/bitacora/${idNota}/firmar`,
-    {
-      method: "PATCH",
+  const response = await apiFetch(`/api/v1/bitacora/${idNota}/firmar`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({}),
+  });
 
   if (!response.ok) {
     throw new Error(

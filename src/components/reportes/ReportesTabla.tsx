@@ -91,6 +91,13 @@ export function ReportesTabla({
               const puedeReabrir =
                 rol === "Administrador" && reporte.estado === "Validado";
               const ocupado = cambiando === reporte.id_reporte;
+              const condicionantesTexto = reporte.condicionantes?.length
+                ? reporte.condicionantes
+                    .map((c) => c?.condicionante ?? c?.nombre ?? c?.tipo)
+                    .filter(Boolean)
+                    .join(", ") ||
+                  `${reporte.condicionantes.length} registrada(s)`
+                : "—";
 
               return (
                 <tr key={reporte.id_reporte} className="align-top hover:bg-slate-50/60">
@@ -104,7 +111,7 @@ export function ReportesTabla({
                     {reporte.avance_general}
                   </td>
                   <td className="max-w-xs px-4 py-3 text-slate-700">
-                    {reporte.condicionantes}
+                    {condicionantesTexto}
                   </td>
                   <td className="px-4 py-3">
                     <EstadoBadge estado={reporte.estado} />

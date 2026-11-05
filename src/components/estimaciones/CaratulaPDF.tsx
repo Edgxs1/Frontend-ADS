@@ -1,6 +1,7 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { formatearFecha, formatearMoneda } from "@/lib/format";
-import type { CaratulaOficial } from "@/types/estimacion";
+import type { ContratoConContratista } from "@/types";
+import type { CaratulaOficial, ResumenPartida } from "@/types/estimacion";
 
 const AZUL = "#0f172a";
 const GRIS = "#475569";
@@ -47,6 +48,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
     columnGap: 12,
   },
+  metaRowSecundaria: {
+    flexDirection: "row",
+    marginTop: 8,
+    columnGap: 12,
+  },
   metaCol: {
     flex: 1,
   },
@@ -58,7 +64,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   metaValue: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "bold",
   },
   sectionTitle: {
@@ -111,6 +117,62 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 15,
     fontWeight: "bold",
+  },
+  partidasSection: {
+    marginTop: 16,
+  },
+  partidasTable: {
+    borderWidth: 1,
+    borderColor: BORDE,
+    borderRadius: 4,
+  },
+  partidasHeaderRow: {
+    flexDirection: "row",
+    backgroundColor: "#f8fafc",
+    borderBottomWidth: 1,
+    borderBottomColor: BORDE,
+  },
+  partidasRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: BORDE,
+  },
+  partidasRowUltima: {
+    borderBottomWidth: 0,
+  },
+  partidasCellClave: {
+    width: "14%",
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderRightWidth: 1,
+    borderRightColor: BORDE,
+  },
+  partidasCellDescripcion: {
+    width: "56%",
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderRightWidth: 1,
+    borderRightColor: BORDE,
+  },
+  partidasCellConceptos: {
+    width: "12%",
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderRightWidth: 1,
+    borderRightColor: BORDE,
+    textAlign: "center",
+  },
+  partidasCellImporte: {
+    width: "18%",
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    textAlign: "right",
+  },
+  partidasCellVacia: {
+    width: "100%",
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    textAlign: "center",
   },
   conceptosSection: {
     marginTop: 16,
@@ -224,13 +286,20 @@ const styles = StyleSheet.create({
     borderTopColor: "#94a3b8",
     paddingTop: 6,
   },
-  firmaRol: {
-    marginBottom: 3,
+  firmaAccion: {
+    marginBottom: 1,
     fontSize: 9,
     fontWeight: "bold",
   },
+  firmaRol: {
+    marginBottom: 3,
+    fontSize: 7,
+    color: GRIS,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
   firmaHash: {
-    fontSize: 8,
+    fontSize: 7,
     lineHeight: 1.35,
     color: GRIS,
     letterSpacing: 0.2,
@@ -243,9 +312,9 @@ const styles = StyleSheet.create({
   },
 });
 
-function formatearHash(hash: string | null): string {
-  if (!hash) {
-    return "No disponible";
+function formatearHash(hash: string | null, aprobada: boolean): string {
+  if (!aprobada || !hash) {
+    return "Pendiente de firma";
   }
 
   return hash.replace(/(.{16})/g, "$1 ").trim();
@@ -254,10 +323,22 @@ function formatearHash(hash: string | null): string {
 interface CaratulaPDFProps {
   caratula: CaratulaOficial;
   nombreObra: string;
+  contrato: ContratoConContratista | null;
+  resumenPartidas: ResumenPartida[];
 }
 
-export function CaratulaPDF({ caratula, nombreObra }: CaratulaPDFProps) {
+export function CaratulaPDF({
+  caratula,
+  nombreObra,
+  contrato,
+  resumenPartidas,
+}: CaratulaPDFProps) {
   const { estimacion, conceptos, caratula: financiero } = caratula;
+  const aprobada = estimacion.estado === "Aprobada";
+  const totalPartidas = resumenPartidas.reduce(
+    (total, partida) => total + partida.importe,
+    0,
+  );
 
   return (
     <Document
@@ -281,15 +362,44 @@ export function CaratulaPDF({ caratula, nombreObra }: CaratulaPDFProps) {
               <Text style={styles.metaValue}>{estimacion.tipo}</Text>
             </View>
             <View style={styles.metaCol}>
-              <Text style={styles.metaLabel}>Periodo</Text>
+              <Text style={styles.metaLabel}>Estado</Text>
+              <Text style={styles.metaValue}>{estimacion.estado}</Text>
+            </View>
+            <View style={styles.metaCol}>
+              <Text style={styles.metaLabel}>Fecha de estimación</Text>
+              <Text style={styles.metaValue}>
+                {formatearFecha(estimacion.fecha ?? estimacion.created_at)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.metaRowSecundaria}>
+            <View style={styles.metaCol}>
+              <Text style={styles.metaLabel}>Contrato</Text>
+              <Text style={styles.metaValue}>
+                {contrato?.numero_contrato ?? "—"}
+              </Text>
+            </View>
+            <View style={styles.metaCol}>
+              <Text style={styles.metaLabel}>Contratista</Text>
+              <Text style={styles.metaValue}>
+                {contrato?.contratista?.razon_social ?? "—"}
+              </Text>
+            </View>
+            <View style={styles.metaCol}>
+              <Text style={styles.metaLabel}>Periodo de ejecución</Text>
+              <Text style={styles.metaValue}>
+                {contrato
+                  ? `${formatearFecha(contrato.periodo_ejecucion_inicio)} — ${formatearFecha(contrato.periodo_ejecucion_fin)}`
+                  : "—"}
+              </Text>
+            </View>
+            <View style={styles.metaCol}>
+              <Text style={styles.metaLabel}>Periodo de estimación</Text>
               <Text style={styles.metaValue}>
                 {formatearFecha(estimacion.periodo_inicio)} —{" "}
                 {formatearFecha(estimacion.periodo_fin)}
               </Text>
-            </View>
-            <View style={styles.metaCol}>
-              <Text style={styles.metaLabel}>Estado</Text>
-              <Text style={styles.metaValue}>{estimacion.estado}</Text>
             </View>
           </View>
         </View>
@@ -298,7 +408,7 @@ export function CaratulaPDF({ caratula, nombreObra }: CaratulaPDFProps) {
 
         <View style={styles.tabla}>
           <View style={styles.fila}>
-            <Text style={styles.etiqueta}>Subtotal</Text>
+            <Text style={styles.etiqueta}>Subtotal de conceptos</Text>
             <Text style={styles.valor}>{formatearMoneda(financiero.subtotal)}</Text>
           </View>
           <View style={styles.fila}>
@@ -306,19 +416,29 @@ export function CaratulaPDF({ caratula, nombreObra }: CaratulaPDFProps) {
             <Text style={styles.valor}>{formatearMoneda(financiero.iva)}</Text>
           </View>
           <View style={styles.fila}>
-            <Text style={styles.etiqueta}>Retención inspección (0.5%)</Text>
+            <Text style={styles.etiqueta}>Subtotal con IVA</Text>
             <Text style={styles.valor}>
-              {formatearMoneda(financiero.retencion_inspeccion)}
+              {formatearMoneda(financiero.subtotal + financiero.iva)}
             </Text>
           </View>
           <View style={styles.fila}>
-            <Text style={styles.etiqueta}>Amortización anticipo</Text>
+            <Text style={styles.etiqueta}>( - ) Amortización de anticipo</Text>
             <Text style={styles.valor}>
               {formatearMoneda(financiero.amortizacion_anticipo)}
             </Text>
           </View>
+          <View style={styles.fila}>
+            <Text style={styles.etiqueta}>
+              ( - ) Retención por inspección (0.5%)
+            </Text>
+            <Text style={styles.valor}>
+              {formatearMoneda(financiero.retencion_inspeccion)}
+            </Text>
+          </View>
           <View style={[styles.fila, styles.filaUltima]}>
-            <Text style={styles.etiqueta}>Retención atraso programa</Text>
+            <Text style={styles.etiqueta}>
+              ( - ) Retención manual / atraso de programa
+            </Text>
             <Text style={styles.valor}>
               {formatearMoneda(financiero.retencion_atraso_programa)}
             </Text>
@@ -332,9 +452,81 @@ export function CaratulaPDF({ caratula, nombreObra }: CaratulaPDFProps) {
           </Text>
         </View>
 
+        <View style={styles.partidasSection} wrap={true}>
+          <Text style={styles.sectionTitle}>Resumen por partida</Text>
+          <View style={styles.partidasTable}>
+            <View style={styles.partidasHeaderRow} fixed>
+              <View style={styles.partidasCellClave}>
+                <Text style={styles.conceptosHeaderText}>Clave</Text>
+              </View>
+              <View style={styles.partidasCellDescripcion}>
+                <Text style={styles.conceptosHeaderText}>Partida</Text>
+              </View>
+              <View style={styles.partidasCellConceptos}>
+                <Text style={styles.conceptosHeaderText}>Conceptos</Text>
+              </View>
+              <View style={styles.partidasCellImporte}>
+                <Text style={styles.conceptosHeaderText}>Importe</Text>
+              </View>
+            </View>
+            {resumenPartidas.length > 0 ? (
+              resumenPartidas.map((partida, index) => {
+                const esUltima = index === resumenPartidas.length - 1;
+
+                return (
+                  <View
+                    key={partida.id_partida ?? partida.clave}
+                    style={
+                      esUltima
+                        ? [styles.partidasRow, styles.partidasRowUltima]
+                        : styles.partidasRow
+                    }
+                    wrap={false}
+                  >
+                    <View style={styles.partidasCellClave}>
+                      <Text style={styles.conceptosTextClave}>
+                        {partida.clave}
+                      </Text>
+                    </View>
+                    <View style={styles.partidasCellDescripcion}>
+                      <Text style={styles.conceptosTextDesc}>
+                        {partida.descripcion}
+                      </Text>
+                    </View>
+                    <View style={styles.partidasCellConceptos}>
+                      <Text style={styles.conceptosTextUnidad}>
+                        {partida.conceptos}
+                      </Text>
+                    </View>
+                    <View style={styles.partidasCellImporte}>
+                      <Text style={styles.conceptosTextNumero}>
+                        {formatearMoneda(partida.importe)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={[styles.partidasRow, styles.partidasRowUltima]}>
+                <View style={styles.partidasCellVacia}>
+                  <Text style={styles.conceptosTextDesc}>
+                    Sin partidas registradas.
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+          <View style={styles.fila}>
+            <Text style={styles.etiqueta}>Total por partidas</Text>
+            <Text style={styles.valor}>{formatearMoneda(totalPartidas)}</Text>
+          </View>
+        </View>
+
         {conceptos && conceptos.length > 0 ? (
           <View style={styles.conceptosSection} wrap={true}>
-            <Text style={styles.sectionTitle}>Conceptos cobrados</Text>
+            <Text style={styles.sectionTitle}>
+              Lista detallada de conceptos
+            </Text>
             <View style={styles.conceptosTable}>
               <View style={styles.conceptosHeaderRow} fixed>
                 <View style={styles.conceptosCellClave}>
@@ -364,7 +556,9 @@ export function CaratulaPDF({ caratula, nombreObra }: CaratulaPDFProps) {
                 const precioUnitario = Number(
                   concepto.precio_unitario_snapshot ?? 0,
                 );
-                const importe = Number(concepto.importe ?? cantidad * precioUnitario);
+                const importe = Number(
+                  concepto.importe ?? cantidad * precioUnitario,
+                );
 
                 return (
                   <View
@@ -414,29 +608,32 @@ export function CaratulaPDF({ caratula, nombreObra }: CaratulaPDFProps) {
         ) : null}
 
         <View style={styles.firmas} fixed>
-          <Text style={styles.firmasTitulo}>Firmas criptográficas</Text>
+          <Text style={styles.firmasTitulo}>Firmas</Text>
           <View style={styles.firmasRow}>
             <View style={styles.firmaCol}>
+              <Text style={styles.firmaAccion}>Formuló</Text>
               <Text style={styles.firmaRol}>Superintendente</Text>
               <Text style={styles.firmaHash}>
-                {formatearHash(estimacion.firma_superintendente)}
+                {formatearHash(estimacion.firma_superintendente, aprobada)}
               </Text>
             </View>
             <View style={styles.firmaCol}>
+              <Text style={styles.firmaAccion}>Revisó</Text>
               <Text style={styles.firmaRol}>Supervisor</Text>
               <Text style={styles.firmaHash}>
-                {formatearHash(estimacion.firma_supervisor)}
+                {formatearHash(estimacion.firma_supervisor, aprobada)}
               </Text>
             </View>
             <View style={styles.firmaCol}>
+              <Text style={styles.firmaAccion}>Autorizó</Text>
               <Text style={styles.firmaRol}>Residente</Text>
               <Text style={styles.firmaHash}>
-                {formatearHash(estimacion.firma_residente)}
+                {formatearHash(estimacion.firma_residente, aprobada)}
               </Text>
             </View>
           </View>
           <Text style={styles.pie}>
-            Los hashes anteriores validan la autenticidad e integridad de este
+            Los hashes SHA-256 validan la autenticidad e integridad de este
             documento.
           </Text>
         </View>

@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BookOpen, ClipboardList, FileSignature } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  Building2,
+  ClipboardList,
+  FileSignature,
+  Users,
+} from "lucide-react";
 import { useSupabaseSession } from "@/providers/supabase-provider";
 import { useObra } from "@/providers/obra-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,6 +89,64 @@ export function DashboardHome() {
           );
         })}
       </section>
+
+      {rol === "Administrador" ? (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">
+              Administración
+            </h2>
+            <p className="text-sm text-slate-500">
+              Gestiona las cuentas de usuario y las obras del sistema.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                <CardTitle className="text-sm font-medium text-slate-600">
+                  Usuarios
+                </CardTitle>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900/5 text-slate-900">
+                  <Users className="h-4 w-4" aria-hidden="true" />
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <p className="text-sm text-slate-500">
+                  Crea usuarios, asigna roles y activa o desactiva sus cuentas.
+                </p>
+                <Button asChild variant="outline" className="w-fit gap-2">
+                  <Link href="/dashboard/usuarios">
+                    Gestionar usuarios
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                <CardTitle className="text-sm font-medium text-slate-600">
+                  Obras
+                </CardTitle>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900/5 text-slate-900">
+                  <Building2 className="h-4 w-4" aria-hidden="true" />
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <p className="text-sm text-slate-500">
+                  Registra nuevas obras y asigna usuarios a su equipo de trabajo.
+                </p>
+                <Button asChild variant="outline" className="w-fit gap-2">
+                  <Link href="/dashboard/obras">
+                    Gestionar obras
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
