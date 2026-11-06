@@ -7,7 +7,6 @@ import { ObraFormulario } from "./ObraFormulario";
 import { ObrasTabla } from "./ObrasTabla";
 import { AsignacionesObra } from "./AsignacionesObra";
 import type { Obra } from "@/types";
-import { RecursosCatalogo } from "./RecursosCatalogo";
 
 export function DatosObras() {
   const [obras, setObras] = useState<Obra[] | null>(null);
@@ -95,22 +94,9 @@ export function DatosObras() {
       ) : null}
 
       {!cargando && !error && seleccionada ? (
-        <>
-          <section className="space-y-6">
-            <AsignacionesObra key={seleccionada.id_obra} obra={seleccionada} />
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h3 className="text-base font-semibold text-slate-900">Catálogo de Recursos</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  Administra el catálogo de Personal, Maquinaria y Equipo para esta obra.
-                </p>
-              </div>
-              <div className="p-5">
-                <RecursosCatalogo idObra={seleccionada.id_obra} />
-              </div>
-            </div>
-          </section>
-        </>
+        <section className="space-y-6">
+          <AsignacionesObra key={seleccionada.id_obra} obra={seleccionada} />
+        </section>
       ) : null}
     </div>
   );

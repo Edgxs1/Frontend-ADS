@@ -9,15 +9,13 @@ import { Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { passwordSeguroSchema } from "@/lib/password";
 import { useSupabaseSession } from "@/providers/supabase-provider";
 
 const contrasenaSchema = z
   .object({
-    nueva_contrasena: z
-      .string()
-      .min(8, "La contraseña debe tener al menos 8 caracteres")
-      .max(72, "La contraseña es demasiado larga"),
-    confirmar_contrasena: z.string().min(8, "Confirma la contraseña"),
+    nueva_contrasena: passwordSeguroSchema,
+    confirmar_contrasena: passwordSeguroSchema,
   })
   .refine((data) => data.nueva_contrasena === data.confirmar_contrasena, {
     message: "Las contraseñas no coinciden",
@@ -81,7 +79,7 @@ export function FormularioSeguridad() {
               id="nueva_contrasena"
               type={mostrarNueva ? "text" : "password"}
               autoComplete="new-password"
-              placeholder="Mínimo 8 caracteres"
+              placeholder="Mínimo 8 caracteres, 1 mayúscula, 1 número y 1 símbolo"
               disabled={isSubmitting}
               className="pr-10"
               {...register("nueva_contrasena")}

@@ -12,12 +12,14 @@ import type { UsuarioAdmin } from "@/types";
 
 interface UsuariosTablaProps {
   usuarios: UsuarioAdmin[];
+  mensajeVacio?: string;
   onRolActualizado: (usuario: UsuarioAdmin) => void;
   onEstadoActualizado: (usuario: UsuarioAdmin) => void;
 }
 
 export function UsuariosTabla({
   usuarios,
+  mensajeVacio,
   onRolActualizado,
   onEstadoActualizado,
 }: UsuariosTablaProps) {
@@ -70,7 +72,7 @@ export function UsuariosTabla({
   if (usuarios.length === 0) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
-        Aún no hay usuarios registrados.
+        {mensajeVacio ?? "Aún no hay usuarios registrados."}
       </div>
     );
   }

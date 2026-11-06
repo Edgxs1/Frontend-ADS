@@ -13,6 +13,7 @@ import {
   Lock
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { esPasswordSegura, obtenerErrorPassword } from "@/lib/password";
 import { useSupabaseSession } from "@/providers/supabase-provider";
 
 export default function UpdatePasswordPage() {
@@ -25,7 +26,8 @@ export default function UpdatePasswordPage() {
   const [exito, setExito] = useState(false);
   const [mensajeError, setMensajeError] = useState("");
 
-  const formValido = password.length >= 6 && password === confirmar;
+  const formValido = esPasswordSegura(password) && password === confirmar;
+  const errorPassword = password.length > 0 ? obtenerErrorPassword(password) : null;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -113,7 +115,7 @@ export default function UpdatePasswordPage() {
                     required
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="Mínimo 8 caracteres, 1 mayúscula, 1 número y 1 símbolo"
                     disabled={enviando}
                     className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-10 pr-11 text-base text-slate-900 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 disabled:opacity-60"
                   />
@@ -132,6 +134,9 @@ export default function UpdatePasswordPage() {
                     )}
                   </button>
                 </div>
+                {errorPassword ? (
+                  <p className="text-xs text-red-600">{errorPassword}</p>
+                ) : null}
               </div>
 
               <div className="flex flex-col gap-2">

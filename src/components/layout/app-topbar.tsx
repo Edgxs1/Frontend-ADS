@@ -95,8 +95,8 @@ export function AppTopbar() {
         })}
       </nav>
 
-      <div className="ml-auto flex items-center gap-2">
-        <div className="hidden md:block">
+      <div className="ml-auto flex min-w-0 items-center gap-2">
+        <div className="min-w-0">
           <SelectorObra />
         </div>
         {rol ? (

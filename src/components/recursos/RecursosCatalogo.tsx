@@ -14,6 +14,8 @@ interface RecursosCatalogoProps {
   idObra: string;
 }
 
+type TipoRecurso = "PERSONAL" | "MAQUINARIA" | "EQUIPO";
+
 export function RecursosCatalogo({ idObra }: RecursosCatalogoProps) {
   const { rol } = useSupabaseSession();
   const esAdmin = rol === "Administrador";
@@ -22,25 +24,38 @@ export function RecursosCatalogo({ idObra }: RecursosCatalogoProps) {
   const [error, setError] = useState<string | null>(null);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  const [tipo, setTipo] = useState<"PERSONAL" | "MAQUINARIA" | "EQUIPO">("PERSONAL");
+  const [tipo, setTipo] = useState<TipoRecurso>("PERSONAL");
   const [descripcion, setDescripcion] = useState("");
-
-  const cargar = async () => {
-    setCargando(true);
-    setError(null);
-    try {
-      const data = await getRecursosPorObra(idObra);
-      setRecursos(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al cargar recursos");
-    } finally {
-      setCargando(false);
-    }
-  };
+  const [recargar, setRecargar] = useState(0);
 
   useEffect(() => {
-    cargar();
-  }, [idObra]);
+    let activo = true;
+
+    getRecursosPorObra(idObra)
+      .then((data) => {
+        if (activo) {
+          setRecursos(data);
+          setError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (activo) {
+          setRecursos([]);
+          setError(
+            err instanceof Error ? err.message : "Error al cargar recursos",
+          );
+        }
+      })
+      .finally(() => {
+        if (activo) {
+          setCargando(false);
+        }
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [idObra, recargar]);
 
   const personal = useMemo(
     () => recursos.filter((r) => (r.tipo ?? "").toUpperCase() === "PERSONAL"),
@@ -78,7 +93,8 @@ export function RecursosCatalogo({ idObra }: RecursosCatalogoProps) {
       setDescripcion("");
       setTipo("PERSONAL");
       setMostrarModal(false);
-      await cargar();
+      setCargando(true);
+      setRecargar((valor) => valor + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear");
     } finally {
@@ -198,7 +214,7 @@ export function RecursosCatalogo({ idObra }: RecursosCatalogoProps) {
                 <span className="mb-1 block text-sm font-medium text-slate-700">Tipo</span>
                 <select
                   value={tipo}
-                  onChange={(e) => setTipo(e.target.value as any)}
+                  onChange={(e) => setTipo(e.target.value as TipoRecurso)}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
                 >
                   <option value="PERSONAL">Personal</option>

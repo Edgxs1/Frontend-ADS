@@ -6,16 +6,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { crearUsuario } from "@/services/usuario";
+import { passwordSeguroSchema } from "@/lib/password";
 import { ROLES_SISTEMA } from "@/types";
 import type { UsuarioAdmin } from "@/types";
 
 const esquemaUsuario = z.object({
   email: z.email("Correo inválido"),
   id_rol: z.number("Selecciona un rol").int().min(1).max(5),
-  password: z
-    .string()
-    .min(6, "Mínimo 6 caracteres")
-    .max(72, "Máximo 72 caracteres"),
+  password: passwordSeguroSchema,
 });
 
 type FormValues = z.infer<typeof esquemaUsuario>;
