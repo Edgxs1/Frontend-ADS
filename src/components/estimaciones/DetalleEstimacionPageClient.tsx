@@ -10,8 +10,11 @@ import {
   Check,
   Download,
   Loader2,
+  Pencil,
+  Printer,
   Send,
   ShieldCheck,
+  Undo2,
   X,
 } from "lucide-react";
 import { useObra } from "@/providers/obra-provider";
@@ -233,6 +236,7 @@ export function DetalleEstimacionPageClient() {
       const actualizada = await cambiarEstadoEstimacion(
         idEstimacion,
         "Aprobada",
+        passwordFirma,
       );
 
       actualizarEstimacion(actualizada);
@@ -259,14 +263,14 @@ export function DetalleEstimacionPageClient() {
     actualizarEstimacion,
   ]);
 
-  const rechazar = useCallback(async () => {
+  const devolver = useCallback(async () => {
     const confirmado = window.confirm(
-      "¿Rechazar esta estimación? Esta acción no puede deshacerse.",
+      "¿Devolver esta estimación al Superintendente? Podrá corregirla y enviarla de nuevo.",
     );
 
     if (!confirmado) return;
 
-    await cambiarEstado("Rechazada");
+    await cambiarEstado("Devuelta");
   }, [cambiarEstado]);
 
   const abrirFirma = useCallback(() => {
@@ -288,37 +292,37 @@ export function DetalleEstimacionPageClient() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 print:gap-0">
       <Link
         href="/dashboard/estimaciones"
-        className="inline-flex w-fit items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-900"
+        className="inline-flex w-fit items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-900 print:hidden"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Volver a estimaciones
       </Link>
 
       {accionError ? (
-        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 print:hidden">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>{accionError}</span>
         </div>
       ) : null}
 
       {mensajeExito ? (
-        <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+        <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700 print:hidden">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>{mensajeExito}</span>
         </div>
       ) : null}
 
       {cargando ? (
-        <div className="flex min-h-[40dvh] items-center justify-center">
+        <div className="flex min-h-[40dvh] items-center justify-center print:hidden">
           <Loader2 className="h-7 w-7 animate-spin text-slate-400" aria-hidden="true" />
         </div>
       ) : null}
 
       {error ? (
-        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 print:hidden">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>{error}</span>
         </div>
@@ -334,12 +338,12 @@ export function DetalleEstimacionPageClient() {
           accionEnCurso={accionEnCurso}
           onCambiarEstado={cambiarEstado}
           onAbrirFirma={abrirFirma}
-          onRechazar={rechazar}
+          onDevolver={devolver}
         />
       ) : null}
 
       {mostrarFirma ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 print:hidden">
           <div
             role="dialog"
             aria-modal="true"
@@ -431,7 +435,7 @@ interface ContenidoDetalleProps {
   accionEnCurso: EstadoEstimacion | null;
   onCambiarEstado: (estado: EstadoEstimacion) => void;
   onAbrirFirma: () => void;
-  onRechazar: () => void;
+  onDevolver: () => void;
 }
 
 function ContenidoDetalle({
@@ -443,7 +447,7 @@ function ContenidoDetalle({
   accionEnCurso,
   onCambiarEstado,
   onAbrirFirma,
-  onRechazar,
+  onDevolver,
 }: ContenidoDetalleProps) {
   const { estimacion } = caratula;
   const tieneFirmas = Boolean(
@@ -452,22 +456,27 @@ function ContenidoDetalle({
       estimacion.firma_residente,
   );
 
+  const esSuperintendente = rol === "Superintendente";
   const esSupervisor = rol === "Supervisor";
   const esResidente = rol === "Residente";
   const bloqueado = accionEnCurso !== null;
 
-  const puedePresentar =
-    esSupervisor && estimacion.estado === "Presentación";
+  const estimacionEditable =
+    estimacion.estado === "Creada" || estimacion.estado === "Devuelta";
+  const puedePresentar = esSuperintendente && estimacionEditable;
+  const puedeEditar = esSuperintendente && estimacionEditable;
   const puedeCompletarRevision =
-    esSupervisor && estimacion.estado === "Revisión";
+    esSupervisor && estimacion.estado === "Por revisar";
+  const puedeDevolverSupervisor =
+    esSupervisor && estimacion.estado === "Por revisar";
   const puedeAutorizar =
-    esResidente && estimacion.estado === "Autorización";
-  const puedeRechazar =
-    esResidente && estimacion.estado === "Autorización";
+    esResidente && estimacion.estado === "Revisada";
+  const puedeDevolverResidente =
+    esResidente && estimacion.estado === "Revisada";
 
   return (
     <>
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between print:hidden">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
@@ -489,24 +498,41 @@ function ContenidoDetalle({
             </div>
           ) : null}
 
-          {estimacion.estado === "Aprobada" && tieneFirmas ? (
-            <BotonDescargarCaratula
-              caratula={caratula}
-              nombreObra={nombreObra}
-              contrato={contrato}
-              resumenPartidas={resumenPartidas}
-            />
-          ) : null}
+          <BotonDescargarCaratula
+            caratula={caratula}
+            nombreObra={nombreObra}
+            contrato={contrato}
+            resumenPartidas={resumenPartidas}
+          />
+
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2"
+            onClick={() => window.print()}
+          >
+            <Printer className="h-4 w-4" aria-hidden="true" />
+            Imprimir carátula
+          </Button>
 
           <div className="flex flex-wrap justify-end gap-2">
+            {puedeEditar ? (
+              <Button asChild variant="outline" className="gap-2">
+                <Link href={`/dashboard/estimaciones/${estimacion.id_estimacion}/editar`}>
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                  Editar
+                </Link>
+              </Button>
+            ) : null}
+
             {puedePresentar ? (
               <Button
                 type="button"
                 className="gap-2"
                 disabled={bloqueado}
-                onClick={() => onCambiarEstado("Revisión")}
+                onClick={() => onCambiarEstado("Por revisar")}
               >
-                {accionEnCurso === "Revisión" ? (
+                {accionEnCurso === "Por revisar" ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
                   <Send className="h-4 w-4" aria-hidden="true" />
@@ -520,14 +546,14 @@ function ContenidoDetalle({
                 type="button"
                 className="gap-2"
                 disabled={bloqueado}
-                onClick={() => onCambiarEstado("Autorización")}
+                onClick={() => onCambiarEstado("Revisada")}
               >
-                {accionEnCurso === "Autorización" ? (
+                {accionEnCurso === "Revisada" ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
                   <Check className="h-4 w-4" aria-hidden="true" />
                 )}
-                Completar Revisión
+                Marcar como Revisada
               </Button>
             ) : null}
 
@@ -543,20 +569,20 @@ function ContenidoDetalle({
               </Button>
             ) : null}
 
-            {puedeRechazar ? (
+            {puedeDevolverSupervisor || puedeDevolverResidente ? (
               <Button
                 type="button"
                 variant="outline"
                 className="gap-2 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
                 disabled={bloqueado}
-                onClick={onRechazar}
+                onClick={onDevolver}
               >
-                {accionEnCurso === "Rechazada" ? (
+                {accionEnCurso === "Devuelta" ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
-                  <X className="h-4 w-4" aria-hidden="true" />
+                  <Undo2 className="h-4 w-4" aria-hidden="true" />
                 )}
-                Rechazar
+                Devolver
               </Button>
             ) : null}
           </div>

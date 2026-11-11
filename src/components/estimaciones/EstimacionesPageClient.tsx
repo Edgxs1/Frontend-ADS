@@ -7,8 +7,10 @@ import {
   Calculator,
   Eye,
   Loader2,
+  Pencil,
   Plus,
   Send,
+  Undo2,
 } from "lucide-react";
 import { useSupabaseSession } from "@/providers/supabase-provider";
 import { useObra } from "@/providers/obra-provider";
@@ -34,14 +36,14 @@ import {
   cambiarEstadoEstimacion,
   getEstimaciones,
 } from "@/services/estimacion";
-import type { Estimacion } from "@/types/estimacion";
+import type { EstadoEstimacion, Estimacion } from "@/types/estimacion";
 
 interface DatosCargados {
   idObra: string;
   estimaciones: Estimacion[];
 }
 
-type Accion = "presentar" | "revisar";
+type Accion = "presentar" | "revisar" | "devolver";
 
 export function EstimacionesPageClient() {
   const { rol } = useSupabaseSession();
@@ -91,8 +93,8 @@ export function EstimacionesPageClient() {
   const cargando = idObra !== null && datosValidos === null && error === null;
 
   const puedeCrear = rol === "Superintendente";
-  const puedePresentar = rol === "Supervisor";
-  const puedeCompletarRevision = rol === "Supervisor";
+  const puedePresentar = rol === "Superintendente";
+  const puedeRevisar = rol === "Supervisor";
 
   const ejecutarAccion = async (
     estimacion: Estimacion,
@@ -102,9 +104,16 @@ export function EstimacionesPageClient() {
     setAccionEnCurso(`${estimacion.id_estimacion}:${accion}`);
 
     try {
+      const nuevoEstado: EstadoEstimacion =
+        accion === "presentar"
+          ? "Por revisar"
+          : accion === "revisar"
+            ? "Revisada"
+            : "Devuelta";
+
       const actualizada = await cambiarEstadoEstimacion(
         estimacion.id_estimacion,
-        accion === "presentar" ? "Revisión" : "Autorización",
+        nuevoEstado,
       );
 
       setDatos((prev) =>
@@ -232,8 +241,27 @@ export function EstimacionesPageClient() {
                             </Link>
                           </Button>
 
+                          {puedeCrear &&
+                          (estimacion.estado === "Creada" ||
+                            estimacion.estado === "Devuelta") ? (
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5"
+                            >
+                              <Link
+                                href={`/dashboard/estimaciones/${id}/editar`}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                Editar
+                              </Link>
+                            </Button>
+                          ) : null}
+
                           {puedePresentar &&
-                          estimacion.estado === "Presentación" ? (
+                          (estimacion.estado === "Creada" ||
+                            estimacion.estado === "Devuelta") ? (
                             <Button
                               size="sm"
                               className="gap-1.5"
@@ -249,8 +277,8 @@ export function EstimacionesPageClient() {
                             </Button>
                           ) : null}
 
-                          {puedeCompletarRevision &&
-                          estimacion.estado === "Revisión" ? (
+                          {puedeRevisar &&
+                          estimacion.estado === "Por revisar" ? (
                             <Button
                               size="sm"
                               className="gap-1.5"
@@ -262,7 +290,25 @@ export function EstimacionesPageClient() {
                               ) : (
                                 <Send className="h-3.5 w-3.5" />
                               )}
-                              Completar Revisión
+                              Marcar como Revisada
+                            </Button>
+                          ) : null}
+
+                          {puedeRevisar &&
+                          estimacion.estado === "Por revisar" ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                              disabled={ocupada}
+                              onClick={() => ejecutarAccion(estimacion, "devolver")}
+                            >
+                              {accionEnCurso === `${id}:devolver` ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Undo2 className="h-3.5 w-3.5" />
+                              )}
+                              Devolver
                             </Button>
                           ) : null}
                         </div>

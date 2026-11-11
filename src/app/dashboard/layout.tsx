@@ -50,13 +50,15 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-dvh bg-slate-50">
-      <div className="flex min-h-dvh">
-        <AppSidebar className="hidden w-72 lg:flex" />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <AppTopbar />
-          <main className="flex-1">
-            <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <div className="min-h-dvh bg-slate-50 print:min-h-0 print:bg-white">
+      <div className="flex min-h-dvh print:block print:min-h-0">
+        <AppSidebar className="hidden w-72 lg:flex print:hidden" />
+        <div className="flex min-w-0 flex-1 flex-col print:block">
+          <div className="print:hidden">
+            <AppTopbar />
+          </div>
+          <main className="flex-1 print:block">
+            <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 print:max-w-none print:p-0">
               <Suspense
                 fallback={
                   <div className="flex min-h-[40dvh] items-center justify-center">

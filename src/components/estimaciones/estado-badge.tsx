@@ -1,12 +1,11 @@
 import type { EstadoEstimacion } from "@/types/estimacion";
 
 const ESTADO_CLASS: Record<EstadoEstimacion, string> = {
-  Presentación: "bg-slate-100 text-slate-700",
-  Revisión: "bg-blue-100 text-blue-800",
-  Autorización: "bg-yellow-100 text-yellow-800",
+  Creada: "bg-slate-100 text-slate-700",
+  "Por revisar": "bg-blue-100 text-blue-800",
+  Revisada: "bg-yellow-100 text-yellow-800",
+  Devuelta: "bg-red-100 text-red-800",
   Aprobada: "bg-green-100 text-green-800",
-  Rechazada: "bg-red-100 text-red-800",
-  Anulada: "bg-slate-200 text-slate-600",
 };
 
 export function EstadoEstimacionBadge({ estado }: { estado: EstadoEstimacion }) {

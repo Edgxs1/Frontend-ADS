@@ -1,5 +1,6 @@
 import { apiFetch, leerMensajeError } from "@/lib/api";
 import type {
+  ActualizarEstimacionPayload,
   CaratulaOficial,
   CrearEstimacionPayload,
   EstadoEstimacion,
@@ -42,13 +43,33 @@ export async function crearEstimacion(
   return leerData<Estimacion>(response, "No se pudo crear la estimación.");
 }
 
+export async function actualizarEstimacion(
+  idObra: string,
+  idEstimacion: string,
+  payload: ActualizarEstimacionPayload,
+): Promise<Estimacion> {
+  const response = await apiFetch(
+    `/api/v1/obras/${idObra}/estimaciones/${idEstimacion}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+  );
+
+  return leerData<Estimacion>(
+    response,
+    "No se pudo actualizar la estimación.",
+  );
+}
+
 export async function cambiarEstadoEstimacion(
   idEstimacion: string,
   estado: EstadoEstimacion,
+  password?: string,
 ): Promise<Estimacion> {
   const response = await apiFetch(`/api/v1/estimaciones/${idEstimacion}/estado`, {
-    method: "PUT",
-    body: JSON.stringify({ estado }),
+    method: "PATCH",
+    body: JSON.stringify(password ? { estado, password } : { estado }),
   });
 
   return leerData<Estimacion>(
@@ -61,28 +82,36 @@ export async function enviarRevision(
   _idObra: string,
   idEstimacion: string,
 ): Promise<Estimacion> {
-  return cambiarEstadoEstimacion(idEstimacion, "Revisión");
+  return cambiarEstadoEstimacion(idEstimacion, "Por revisar");
 }
 
 export async function enviarAResidente(
   _idObra: string,
   idEstimacion: string,
 ): Promise<Estimacion> {
-  return cambiarEstadoEstimacion(idEstimacion, "Autorización");
+  return cambiarEstadoEstimacion(idEstimacion, "Revisada");
 }
 
 export async function autorizarEstimacion(
   _idObra: string,
   idEstimacion: string,
+  password?: string,
 ): Promise<Estimacion> {
-  return cambiarEstadoEstimacion(idEstimacion, "Aprobada");
+  return cambiarEstadoEstimacion(idEstimacion, "Aprobada", password);
 }
 
-export async function rechazarEstimacion(
+export async function devolverEstimacion(
   _idObra: string,
   idEstimacion: string,
 ): Promise<Estimacion> {
-  return cambiarEstadoEstimacion(idEstimacion, "Rechazada");
+  return cambiarEstadoEstimacion(idEstimacion, "Devuelta");
+}
+
+export async function rechazarEstimacion(
+  idObra: string,
+  idEstimacion: string,
+): Promise<Estimacion> {
+  return devolverEstimacion(idObra, idEstimacion);
 }
 
 export async function getCaratulaOficial(
@@ -94,4 +123,50 @@ export async function getCaratulaOficial(
   );
 
   return leerData<CaratulaOficial>(response, "No se pudo obtener la carátula.");
+}
+
+/**
+ * RF3.10 - Cantidades acumuladas de estimaciones aprobadas anteriores.
+ *
+ * El backend recalcula estos valores al guardar, pero el formulario los
+ * necesita para mostrar "Cantidad anterior" y validar el volumen disponible.
+ */
+export async function getCantidadesAnteriores(
+  idObra: string,
+  fechaCorte: string,
+  excluirIdEstimacion?: string,
+): Promise<Map<string, number>> {
+  const estimaciones = await getEstimaciones(idObra);
+
+  const anteriores = estimaciones.filter(
+    (estimacion) =>
+      estimacion.estado === "Aprobada" &&
+      estimacion.id_estimacion !== excluirIdEstimacion &&
+      Boolean(estimacion.fecha) &&
+      String(estimacion.fecha) < fechaCorte,
+  );
+
+  if (anteriores.length === 0) {
+    return new Map();
+  }
+
+  const caratulas = await Promise.all(
+    anteriores.map((estimacion) =>
+      getCaratulaOficial(idObra, estimacion.id_estimacion).catch(() => null),
+    ),
+  );
+
+  const cantidades = new Map<string, number>();
+
+  for (const caratula of caratulas) {
+    for (const concepto of caratula?.conceptos ?? []) {
+      const cantidad = Number(concepto.cantidad_de_esta_estimacion ?? 0);
+      cantidades.set(
+        concepto.id_concepto,
+        (cantidades.get(concepto.id_concepto) ?? 0) + cantidad,
+      );
+    }
+  }
+
+  return cantidades;
 }

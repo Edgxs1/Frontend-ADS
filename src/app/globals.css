@@ -24,3 +24,40 @@ body {
   scrollbar-color: rgb(148 163 184 / 0.5) transparent;
 }
 
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  body {
+    min-height: auto !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .caratula-documento {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .caratula-documento table {
+    page-break-inside: auto;
+  }
+
+  .caratula-documento tr,
+  .caratula-documento tfoot,
+  .caratula-firmas {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
