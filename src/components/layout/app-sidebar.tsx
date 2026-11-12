@@ -13,11 +13,13 @@ import {
   FolderOpen,
   HardHat,
   Home,
+  Images,
   LayoutDashboard,
   UserRound,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useObra } from "@/providers/obra-provider";
 import { useSupabaseSession } from "@/providers/supabase-provider";
 import type { Rol } from "@/providers/supabase-provider";
 import { cn } from "@/lib/utils";
@@ -28,6 +30,7 @@ interface NavItem {
   href: string;
   icono: LucideIcon;
   exact?: boolean;
+  usaObraActiva?: boolean;
 }
 
 interface NavGrupo {
@@ -61,6 +64,12 @@ const GRUPOS_NAV: NavGrupo[] = [
         titulo: "Reportes Diarios",
         href: "/dashboard/reportes",
         icono: ClipboardList,
+      },
+      {
+        titulo: "Compendios Mensuales",
+        href: "/dashboard",
+        icono: Images,
+        usaObraActiva: true,
       },
       {
         titulo: "Bitácora Electrónica",
@@ -143,6 +152,7 @@ interface AppSidebarProps {
 export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
   const pathname = usePathname();
   const { rol } = useSupabaseSession();
+  const { obraActiva } = useObra();
 
   return (
     <aside
@@ -178,12 +188,16 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
                 <div className="flex flex-col gap-1">
                   {grupo.items.map((item) => {
                     const Icono = item.icono;
-                    const activo = isItemActive(pathname, item);
+                    const href =
+                      item.usaObraActiva && obraActiva
+                        ? `/dashboard/obras/${obraActiva.id_obra}/compendios`
+                        : item.href;
+                    const activo = isItemActive(pathname, { ...item, href });
 
                     return (
                       <Link
-                        key={item.href}
-                        href={item.href}
+                        key={`${item.titulo}-${href}`}
+                        href={href}
                         onClick={onNavigate}
                         className={cn(
                           "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors",

@@ -22,6 +22,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatearMoneda } from "@/lib/format";
+import {
+  MENSAJE_TRASLADO,
+  TIPO_CATALOGO_POR_ESTIMACION,
+  diaDelMesActual,
+  ventanaPresentacion,
+} from "@/lib/ventanas-estimacion";
 import { getCatalogosPorObra } from "@/services/catalogo";
 import { getContrato } from "@/services/contrato";
 import {
@@ -400,6 +406,45 @@ export function EstimacionFormulario({
   const retencionSfpPorcentaje = watch("retencion_sfp_porcentaje");
   const retencionManual = watch("retencion_manual");
 
+  const tipoCatalogoRequerido = TIPO_CATALOGO_POR_ESTIMACION[tipoSeleccionado];
+
+  const catalogosDisponibles = useMemo(
+    () =>
+      catalogos.filter(
+        (concepto) => concepto.tipo === tipoCatalogoRequerido,
+      ),
+    [catalogos, tipoCatalogoRequerido],
+  );
+
+  const catalogoDisponiblePorId = useMemo(() => {
+    const mapa = new Map<string, ConceptoConPartida>();
+    for (const concepto of catalogosDisponibles) {
+      mapa.set(concepto.id_concepto, concepto);
+    }
+    return mapa;
+  }, [catalogosDisponibles]);
+
+  useEffect(() => {
+    const actuales = getValues("conceptos") ?? [];
+
+    actuales.forEach((item, index) => {
+      if (!item.id_concepto) {
+        return;
+      }
+
+      const concepto = catalogoPorId.get(item.id_concepto);
+
+      if (concepto && concepto.tipo !== tipoCatalogoRequerido) {
+        setValue(`conceptos.${index}.id_concepto`, "", {
+          shouldValidate: false,
+        });
+        setValue(`conceptos.${index}.cantidad`, 0, {
+          shouldValidate: false,
+        });
+      }
+    });
+  }, [tipoCatalogoRequerido, catalogoPorId, getValues, setValue]);
+
   const filas = useMemo(() => {
     return (conceptosCapturados ?? []).map((item) => {
       const concepto = catalogoPorId.get(item.id_concepto);
@@ -505,7 +550,29 @@ export function EstimacionFormulario({
       return;
     }
 
+    if (!estimacion && !ventanaPresentacion()) {
+      setErrorServidor(
+        diaDelMesActual() >= 16
+          ? MENSAJE_TRASLADO
+          : "Fuera de tiempo. La presentación de estimaciones solo está permitida del día 1 al 5 del mes.",
+      );
+      return;
+    }
+
     const filasEnvio = filas.filter((fila) => fila.cantidadValida);
+    const tipoRequerido = TIPO_CATALOGO_POR_ESTIMACION[valores.tipo];
+    const conceptosTipoInvalido = filasEnvio.filter((fila) => {
+      const concepto = catalogoPorId.get(fila.idConcepto);
+      return concepto && concepto.tipo !== tipoRequerido;
+    });
+
+    if (conceptosTipoInvalido.length > 0) {
+      setErrorServidor(
+        `RF3.1 - Los conceptos seleccionados deben pertenecer al catálogo "${tipoRequerido}".`,
+      );
+      return;
+    }
+
     const subtotalEnvio = filasEnvio.reduce(
       (total, fila) => total + fila.importe,
       0,
@@ -925,7 +992,7 @@ export function EstimacionFormulario({
             variant="outline"
             size="sm"
             className="gap-1.5"
-            disabled={cargandoDatos || catalogos.length === 0}
+            disabled={cargandoDatos || catalogosDisponibles.length === 0}
             onClick={() => append({ id_concepto: "", cantidad: 0 })}
           >
             <Plus className="h-4 w-4" />
@@ -954,6 +1021,17 @@ export function EstimacionFormulario({
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
               Esta obra aún no tiene conceptos en el catálogo. Registra
               conceptos antes de crear una estimación.
+            </div>
+          ) : null}
+
+          {!cargandoDatos &&
+          !errorDatos &&
+          catalogos.length > 0 &&
+          catalogosDisponibles.length === 0 ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              No hay conceptos de tipo &quot;{tipoCatalogoRequerido}&quot; en el
+              catálogo de esta obra. Cambia el tipo de estimación o registra
+              conceptos de ese tipo.
             </div>
           ) : null}
 
@@ -996,7 +1074,7 @@ export function EstimacionFormulario({
                           className="flex h-9 w-full min-w-[240px] rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus-visible:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400/40"
                         >
                           <option value="">Selecciona un concepto</option>
-                          {catalogos.map((concepto) => (
+                          {catalogosDisponibles.map((concepto) => (
                             <option
                               key={concepto.id_concepto}
                               value={concepto.id_concepto}
@@ -1005,8 +1083,9 @@ export function EstimacionFormulario({
                             </option>
                           ))}
                           {idSeleccionado &&
-                          !catalogoPorId.has(idSeleccionado) &&
-                          conceptosOriginalesPorId.has(idSeleccionado) ? (
+                          !catalogoDisponiblePorId.has(idSeleccionado) &&
+                          conceptosOriginalesPorId.has(idSeleccionado) &&
+                          !catalogoPorId.has(idSeleccionado) ? (
                             <option value={idSeleccionado}>
                               {conceptosOriginalesPorId.get(idSeleccionado)
                                 ?.clave ?? idSeleccionado}{" "}

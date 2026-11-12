@@ -35,3 +35,18 @@ export type {
   CrearNotaInput,
   EditarNotaInput,
 } from "./bitacora";
+export type {
+  CompendioMensual,
+  CrearCompendioInput,
+  FotoCompendio,
+  FotoReportePeriodo,
+  PeriodoCompendio,
+  ReporteConFotos,
+} from "./compendio";
+export type {
+  AgrupacionHistorico,
+  DashboardIndicadores,
+  PuntoHistorico,
+  RecursosFinancieros,
+} from "./dashboard";
+export type { TareaPendiente, TipoPendiente } from "./pendiente";

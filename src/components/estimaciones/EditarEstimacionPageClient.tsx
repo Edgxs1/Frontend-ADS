@@ -108,7 +108,7 @@ export function EditarEstimacionPageClient() {
 
   const estimacion = datosValidos?.estimacion;
   const editable =
-    estimacion?.estado === "Creada" || estimacion?.estado === "Devuelta";
+    estimacion?.estado === "Creada" || estimacion?.estado === "Rechazada";
 
   return (
     <div className="flex flex-col gap-6">
@@ -160,7 +160,7 @@ export function EditarEstimacionPageClient() {
           />
           <span>
             Esta estimación está en estado &quot;{estimacion.estado}&quot;. Solo
-            se pueden editar estimaciones en estado Creada o Devuelta.
+            se pueden editar estimaciones en estado Creada o Rechazada.
           </span>
         </div>
       ) : null}

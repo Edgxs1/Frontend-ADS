@@ -1,39 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ArrowRight,
-  BookOpen,
-  Building2,
-  ClipboardList,
-  FileSignature,
-  Users,
-} from "lucide-react";
+import { ArrowRight, Building2, Users } from "lucide-react";
 import { useSupabaseSession } from "@/providers/supabase-provider";
 import { useObra } from "@/providers/obra-provider";
+import { SinObraSeleccionada } from "@/components/common/SinObraSeleccionada";
+import { BandejaPendientes } from "@/components/dashboard/bandeja-pendientes";
+import { TableroObra } from "@/components/dashboard/tablero-obra";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-const METRICAS = [
-  {
-    titulo: "Reportes Pendientes",
-    valor: "0",
-    descripcion: "Reportes diarios en espera de revisión",
-    icono: ClipboardList,
-  },
-  {
-    titulo: "Estimaciones en Revisión",
-    valor: "0",
-    descripcion: "Estimaciones que requieren autorización",
-    icono: FileSignature,
-  },
-  {
-    titulo: "Notas de Bitácora Abiertas",
-    valor: "0",
-    descripcion: "Registros abiertos en la bitácora electrónica",
-    icono: BookOpen,
-  },
-];
 
 export function DashboardHome() {
   const { usuario, rol } = useSupabaseSession();
@@ -63,31 +38,24 @@ export function DashboardHome() {
         </div>
       </header>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {METRICAS.map((metrica) => {
-          const Icono = metrica.icono;
+      <BandejaPendientes />
 
-          return (
-            <Card key={metrica.titulo}>
-              <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                <div className="flex flex-col gap-1">
-                  <CardTitle className="text-sm font-medium text-slate-600">
-                    {metrica.titulo}
-                  </CardTitle>
-                </div>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900/5 text-slate-900">
-                  <Icono className="h-4 w-4" aria-hidden="true" />
-                </div>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-2">
-                <p className="text-3xl font-semibold tracking-tight text-slate-900">
-                  {metrica.valor}
-                </p>
-                <p className="text-sm text-slate-500">{metrica.descripcion}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">
+            Tablero de consulta de la obra
+          </h2>
+          <p className="text-sm text-slate-500">
+            Indicadores de avance, curva de ejecución y estado de los recursos
+            financieros. Información de solo lectura.
+          </p>
+        </div>
+
+        {obraActiva ? (
+          <TableroObra idObra={obraActiva.id_obra} />
+        ) : (
+          <SinObraSeleccionada />
+        )}
       </section>
 
       {rol === "Administrador" ? (
@@ -148,61 +116,43 @@ export function DashboardHome() {
         </section>
       ) : null}
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Accesos Rápidos</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" className="gap-2">
-              <Link href="/dashboard/reportes">
-                Reportes Diarios
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="gap-2">
-              <Link href="/dashboard/bitacora">
-                Bitácora Electrónica
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="gap-2">
-              <Link href="/dashboard/catalogos">
-                Catálogos de Conceptos
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="gap-2">
-              <Link href="/dashboard/contrato">
-                Contratos
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="gap-2">
-              <Link href="/dashboard/expediente">
-                Expediente en Nube
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Estado General</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 text-sm text-slate-500">
-            <p>
-              Las métricas se irán poblando conforme se registren reportes,
-              estimaciones y notas en la bitácora electrónica.
-            </p>
-            <p>
-              Usa el selector de obra activa en la barra superior para cambiar
-              entre los proyectos asignados a tu cuenta.
-            </p>
-          </CardContent>
-        </Card>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Accesos rápidos</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="gap-2">
+            <Link href="/dashboard/reportes">
+              Reportes Diarios
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
+            <Link href="/dashboard/bitacora">
+              Bitácora Electrónica
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
+            <Link href="/dashboard/catalogos">
+              Catálogos de Conceptos
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
+            <Link href="/dashboard/contrato">
+              Contratos
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
+            <Link href="/dashboard/expediente">
+              Expediente en Nube
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

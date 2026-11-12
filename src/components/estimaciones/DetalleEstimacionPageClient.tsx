@@ -14,7 +14,6 @@ import {
   Printer,
   Send,
   ShieldCheck,
-  Undo2,
   X,
 } from "lucide-react";
 import { useObra } from "@/providers/obra-provider";
@@ -25,6 +24,12 @@ import { EstadoEstimacionBadge } from "@/components/estimaciones/estado-badge";
 import { CaratulaEstimacion } from "@/components/estimaciones/CaratulaEstimacion";
 import { Button } from "@/components/ui/button";
 import { formatearFecha } from "@/lib/format";
+import {
+  diaDelMesActual,
+  ventanaAutorizacion,
+  ventanaPresentacion,
+  ventanaRevision,
+} from "@/lib/ventanas-estimacion";
 import { cambiarEstadoEstimacion, getCaratulaOficial } from "@/services/estimacion";
 import { getCatalogosPorObra } from "@/services/catalogo";
 import { getContrato } from "@/services/contrato";
@@ -263,14 +268,14 @@ export function DetalleEstimacionPageClient() {
     actualizarEstimacion,
   ]);
 
-  const devolver = useCallback(async () => {
+  const rechazar = useCallback(async () => {
     const confirmado = window.confirm(
-      "¿Devolver esta estimación al Superintendente? Podrá corregirla y enviarla de nuevo.",
+      "¿Rechazar esta estimación? El Superintendente podrá corregirla y enviarla de nuevo.",
     );
 
     if (!confirmado) return;
 
-    await cambiarEstado("Devuelta");
+    await cambiarEstado("Rechazada");
   }, [cambiarEstado]);
 
   const abrirFirma = useCallback(() => {
@@ -338,7 +343,7 @@ export function DetalleEstimacionPageClient() {
           accionEnCurso={accionEnCurso}
           onCambiarEstado={cambiarEstado}
           onAbrirFirma={abrirFirma}
-          onDevolver={devolver}
+          onRechazar={rechazar}
         />
       ) : null}
 
@@ -435,7 +440,7 @@ interface ContenidoDetalleProps {
   accionEnCurso: EstadoEstimacion | null;
   onCambiarEstado: (estado: EstadoEstimacion) => void;
   onAbrirFirma: () => void;
-  onDevolver: () => void;
+  onRechazar: () => void;
 }
 
 function ContenidoDetalle({
@@ -447,7 +452,7 @@ function ContenidoDetalle({
   accionEnCurso,
   onCambiarEstado,
   onAbrirFirma,
-  onDevolver,
+  onRechazar,
 }: ContenidoDetalleProps) {
   const { estimacion } = caratula;
   const tieneFirmas = Boolean(
@@ -460,19 +465,25 @@ function ContenidoDetalle({
   const esSupervisor = rol === "Supervisor";
   const esResidente = rol === "Residente";
   const bloqueado = accionEnCurso !== null;
+  const diaActual = diaDelMesActual();
 
   const estimacionEditable =
-    estimacion.estado === "Creada" || estimacion.estado === "Devuelta";
-  const puedePresentar = esSuperintendente && estimacionEditable;
+    estimacion.estado === "Creada" || estimacion.estado === "Rechazada";
+  const puedePresentar =
+    esSuperintendente && estimacionEditable && ventanaPresentacion(diaActual);
   const puedeEditar = esSuperintendente && estimacionEditable;
   const puedeCompletarRevision =
-    esSupervisor && estimacion.estado === "Por revisar";
-  const puedeDevolverSupervisor =
-    esSupervisor && estimacion.estado === "Por revisar";
+    esSupervisor &&
+    estimacion.estado === "Por revisar" &&
+    ventanaRevision(diaActual);
   const puedeAutorizar =
-    esResidente && estimacion.estado === "Revisada";
-  const puedeDevolverResidente =
-    esResidente && estimacion.estado === "Revisada";
+    esResidente &&
+    estimacion.estado === "Revisada" &&
+    ventanaAutorizacion(diaActual);
+  const puedeRechazar =
+    esResidente &&
+    estimacion.estado === "Revisada" &&
+    ventanaAutorizacion(diaActual);
 
   return (
     <>
@@ -569,20 +580,20 @@ function ContenidoDetalle({
               </Button>
             ) : null}
 
-            {puedeDevolverSupervisor || puedeDevolverResidente ? (
+            {puedeRechazar ? (
               <Button
                 type="button"
                 variant="outline"
                 className="gap-2 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
                 disabled={bloqueado}
-                onClick={onDevolver}
+                onClick={onRechazar}
               >
-                {accionEnCurso === "Devuelta" ? (
+                {accionEnCurso === "Rechazada" ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
-                  <Undo2 className="h-4 w-4" aria-hidden="true" />
+                  <X className="h-4 w-4" aria-hidden="true" />
                 )}
-                Devolver
+                Rechazar
               </Button>
             ) : null}
           </div>

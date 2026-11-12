@@ -100,18 +100,11 @@ export async function autorizarEstimacion(
   return cambiarEstadoEstimacion(idEstimacion, "Aprobada", password);
 }
 
-export async function devolverEstimacion(
+export async function rechazarEstimacion(
   _idObra: string,
   idEstimacion: string,
 ): Promise<Estimacion> {
-  return cambiarEstadoEstimacion(idEstimacion, "Devuelta");
-}
-
-export async function rechazarEstimacion(
-  idObra: string,
-  idEstimacion: string,
-): Promise<Estimacion> {
-  return devolverEstimacion(idObra, idEstimacion);
+  return cambiarEstadoEstimacion(idEstimacion, "Rechazada");
 }
 
 export async function getCaratulaOficial(

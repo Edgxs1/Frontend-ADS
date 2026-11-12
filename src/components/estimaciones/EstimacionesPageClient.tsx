@@ -10,7 +10,6 @@ import {
   Pencil,
   Plus,
   Send,
-  Undo2,
 } from "lucide-react";
 import { useSupabaseSession } from "@/providers/supabase-provider";
 import { useObra } from "@/providers/obra-provider";
@@ -33,6 +32,12 @@ import {
 } from "@/components/ui/table";
 import { formatearFecha } from "@/lib/format";
 import {
+  MENSAJE_TRASLADO,
+  diaDelMesActual,
+  ventanaPresentacion,
+  ventanaRevision,
+} from "@/lib/ventanas-estimacion";
+import {
   cambiarEstadoEstimacion,
   getEstimaciones,
 } from "@/services/estimacion";
@@ -43,7 +48,7 @@ interface DatosCargados {
   estimaciones: Estimacion[];
 }
 
-type Accion = "presentar" | "revisar" | "devolver";
+type Accion = "presentar" | "revisar";
 
 export function EstimacionesPageClient() {
   const { rol } = useSupabaseSession();
@@ -92,9 +97,13 @@ export function EstimacionesPageClient() {
 
   const cargando = idObra !== null && datosValidos === null && error === null;
 
-  const puedeCrear = rol === "Superintendente";
-  const puedePresentar = rol === "Superintendente";
-  const puedeRevisar = rol === "Supervisor";
+  const diaActual = diaDelMesActual();
+  const esSuperintendente = rol === "Superintendente";
+  const puedeCrear = esSuperintendente && ventanaPresentacion(diaActual);
+  const puedeEditar = esSuperintendente;
+  const puedePresentar =
+    esSuperintendente && ventanaPresentacion(diaActual);
+  const puedeRevisar = rol === "Supervisor" && ventanaRevision(diaActual);
 
   const ejecutarAccion = async (
     estimacion: Estimacion,
@@ -105,11 +114,7 @@ export function EstimacionesPageClient() {
 
     try {
       const nuevoEstado: EstadoEstimacion =
-        accion === "presentar"
-          ? "Por revisar"
-          : accion === "revisar"
-            ? "Revisada"
-            : "Devuelta";
+        accion === "presentar" ? "Por revisar" : "Revisada";
 
       const actualizada = await cambiarEstadoEstimacion(
         estimacion.id_estimacion,
@@ -198,7 +203,11 @@ export function EstimacionesPageClient() {
               <p className="max-w-sm text-sm text-slate-500">
                 {puedeCrear
                   ? "Crea la primera estimación para esta obra."
-                  : "Cuando el Superintendente registre una estimación aparecerá aquí."}
+                  : esSuperintendente
+                    ? diaActual >= 16
+                      ? MENSAJE_TRASLADO
+                      : "La presentación de estimaciones solo está permitida del día 1 al 5 del mes."
+                    : "Cuando el Superintendente registre una estimación aparecerá aquí."}
               </p>
             </div>
           ) : (
@@ -241,9 +250,9 @@ export function EstimacionesPageClient() {
                             </Link>
                           </Button>
 
-                          {puedeCrear &&
+                          {puedeEditar &&
                           (estimacion.estado === "Creada" ||
-                            estimacion.estado === "Devuelta") ? (
+                            estimacion.estado === "Rechazada") ? (
                             <Button
                               asChild
                               variant="outline"
@@ -261,7 +270,7 @@ export function EstimacionesPageClient() {
 
                           {puedePresentar &&
                           (estimacion.estado === "Creada" ||
-                            estimacion.estado === "Devuelta") ? (
+                            estimacion.estado === "Rechazada") ? (
                             <Button
                               size="sm"
                               className="gap-1.5"
@@ -291,24 +300,6 @@ export function EstimacionesPageClient() {
                                 <Send className="h-3.5 w-3.5" />
                               )}
                               Marcar como Revisada
-                            </Button>
-                          ) : null}
-
-                          {puedeRevisar &&
-                          estimacion.estado === "Por revisar" ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-1.5 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
-                              disabled={ocupada}
-                              onClick={() => ejecutarAccion(estimacion, "devolver")}
-                            >
-                              {accionEnCurso === `${id}:devolver` ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Undo2 className="h-3.5 w-3.5" />
-                              )}
-                              Devolver
                             </Button>
                           ) : null}
                         </div>

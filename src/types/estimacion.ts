@@ -10,7 +10,7 @@ export const ESTADOS_ESTIMACION = [
   "Creada",
   "Por revisar",
   "Revisada",
-  "Devuelta",
+  "Rechazada",
   "Aprobada",
 ] as const;
 export type EstadoEstimacion = (typeof ESTADOS_ESTIMACION)[number];
