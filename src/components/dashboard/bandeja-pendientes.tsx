@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { getPendientes } from "@/services/pendientes";
 import { formatearFecha } from "@/lib/format";
+import { useSupabaseSession } from "@/providers/supabase-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { TareaPendiente, TipoPendiente } from "@/types";
 
@@ -29,35 +30,93 @@ const ETIQUETA_POR_TIPO: Record<TipoPendiente, string> = {
 };
 
 export function BandejaPendientes() {
+  const { supabase, session } = useSupabaseSession();
   const [tareas, setTareas] = useState<TareaPendiente[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const cargar = useCallback(async () => {
+    try {
+      const lista = await getPendientes();
+      setTareas(lista);
+      setError(null);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo obtener la bandeja de pendientes.",
+      );
+    } finally {
+      setCargando(false);
+    }
+  }, []);
 
   useEffect(() => {
     let activo = true;
 
     getPendientes()
       .then((lista) => {
-        if (activo) {
-          setTareas(lista);
-          setCargando(false);
+        if (!activo) {
+          return;
         }
+
+        setTareas(lista);
+        setError(null);
+        setCargando(false);
       })
       .catch((err: unknown) => {
-        if (activo) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "No se pudo obtener la bandeja de pendientes.",
-          );
-          setCargando(false);
+        if (!activo) {
+          return;
         }
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "No se pudo obtener la bandeja de pendientes.",
+        );
+        setCargando(false);
       });
 
     return () => {
       activo = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    const channel = supabase.channel("pendientes_channel");
+    const tablas = [
+      "estimaciones",
+      "reportes_diarios",
+      "bitacora_notas",
+    ] as const;
+
+    for (const table of tablas) {
+      channel.on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table },
+        () => {
+          void cargar();
+        },
+      );
+      channel.on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table },
+        () => {
+          void cargar();
+        },
+      );
+    }
+
+    channel.subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [supabase, session, cargar]);
 
   const resumen = useMemo(() => {
     const conteo: Record<TipoPendiente, number> = {

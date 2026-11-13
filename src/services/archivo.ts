@@ -1,8 +1,10 @@
 import { apiFetch } from "@/lib/api";
+import type { CarpetaRepositorio } from "@/lib/repositorio";
 import type { ArchivoRepositorio } from "@/types";
 
 export interface SubirArchivoInput {
   tipo_documento: string;
+  categoria_carpeta: CarpetaRepositorio;
   archivo: File;
 }
 
@@ -25,6 +27,7 @@ export async function subirArchivo(
 ): Promise<ArchivoRepositorio> {
   const formData = new FormData();
   formData.append("tipo_documento", input.tipo_documento);
+  formData.append("categoria_carpeta", input.categoria_carpeta);
   formData.append("archivo", input.archivo);
 
   const response = await apiFetch(`/api/v1/obras/${idObra}/archivos`, {

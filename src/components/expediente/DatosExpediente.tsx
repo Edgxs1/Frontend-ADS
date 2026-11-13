@@ -5,6 +5,7 @@ import { AlertCircle, FolderOpen, Loader2 } from "lucide-react";
 import { getArchivosPorObra } from "@/services/archivo";
 import { useSupabaseSession } from "@/providers/supabase-provider";
 import { useObra } from "@/providers/obra-provider";
+import { carpetaPermitidaPorRol } from "@/lib/repositorio";
 import { SinObraSeleccionada } from "@/components/common/SinObraSeleccionada";
 import { ExpedienteSubida } from "./ExpedienteSubida";
 import { ExpedienteTabla } from "./ExpedienteTabla";
@@ -62,6 +63,7 @@ export function DatosExpediente() {
   const archivos = useMemo(() => datosValidos?.archivos ?? [], [datosValidos]);
   const error = datosValidos?.error ?? null;
   const puedeEliminar = rol === "Administrador";
+  const carpetaPermitida = carpetaPermitidaPorRol(rol);
 
   if (!obraActiva) {
     return <SinObraSeleccionada />;
@@ -83,6 +85,7 @@ export function DatosExpediente() {
 
       <ExpedienteSubida
         idObra={obraActiva.id_obra}
+        carpetaPermitida={carpetaPermitida}
         onSubido={(nuevo) => {
           setDatos((prev) => {
             const base =

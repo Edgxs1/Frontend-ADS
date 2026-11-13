@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, FolderClosed, Loader2 } from "lucide-react";
 import { subirArchivo } from "@/services/archivo";
+import type { CarpetaRepositorio } from "@/lib/repositorio";
 import type { ArchivoRepositorio } from "@/types";
 
 const TIPOS = ["Plano", "Acta", "Garantía", "Estudio", "Dictamen", "Otro"] as const;
@@ -31,11 +32,13 @@ type FormValues = z.infer<typeof esquemaArchivo>;
 
 interface ExpedienteSubidaProps {
   idObra: string;
+  carpetaPermitida: CarpetaRepositorio | null;
   onSubido: (archivo: ArchivoRepositorio) => void;
 }
 
 export function ExpedienteSubida({
   idObra,
+  carpetaPermitida,
   onSubido,
 }: ExpedienteSubidaProps) {
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
@@ -51,12 +54,17 @@ export function ExpedienteSubida({
   });
 
   const onSubmit = handleSubmit(async (valores) => {
+    if (!carpetaPermitida) {
+      return;
+    }
+
     setErrorServidor(null);
     setExito(false);
 
     try {
       const archivo = await subirArchivo(idObra, {
         tipo_documento: valores.tipo_documento,
+        categoria_carpeta: carpetaPermitida,
         archivo: valores.archivo[0],
       });
 
@@ -70,12 +78,24 @@ export function ExpedienteSubida({
     }
   });
 
+  if (!carpetaPermitida) {
+    return null;
+  }
+
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="font-semibold text-slate-900">Subir archivo</h2>
       <p className="mt-1 text-sm text-slate-500">
         Selecciona un archivo y su tipo para añadirlo al expediente de la obra.
       </p>
+
+      <div className="mt-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+        <FolderClosed className="h-4 w-4 text-slate-500" aria-hidden="true" />
+        <span>
+          Carpeta asignada:{" "}
+          <span className="font-medium text-slate-900">{carpetaPermitida}</span>
+        </span>
+      </div>
 
       <form onSubmit={onSubmit} className="mt-5 space-y-4" noValidate>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

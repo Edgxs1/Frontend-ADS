@@ -3,6 +3,7 @@ export interface ArchivoRepositorio {
   id_obra: string;
   id_subido_por: string;
   tipo_documento: string;
+  categoria_carpeta: string;
   url_archivo: string;
   created_at?: string | null;
 }
