@@ -16,9 +16,44 @@ interface RecursosCatalogoProps {
 
 type TipoRecurso = "PERSONAL" | "MAQUINARIA" | "EQUIPO";
 
+interface EstadoRecursoProps {
+  activo: boolean;
+  editable: boolean;
+  onCambiar: (activo: boolean) => void;
+}
+
+function EstadoRecurso({ activo, editable, onCambiar }: EstadoRecursoProps) {
+  if (!editable) {
+    return (
+      <span
+        className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+          activo
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-slate-100 text-slate-600"
+        }`}
+      >
+        {activo ? "Activo" : "Inactivo"}
+      </span>
+    );
+  }
+
+  return (
+    <label className="relative inline-flex cursor-pointer items-center">
+      <input
+        type="checkbox"
+        checked={activo}
+        onChange={(event) => onCambiar(event.target.checked)}
+        className="peer sr-only"
+      />
+      <div className="peer h-5 w-9 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-emerald-600 peer-checked:after:translate-x-full"></div>
+    </label>
+  );
+}
+
 export function RecursosCatalogo({ idObra }: RecursosCatalogoProps) {
   const { rol } = useSupabaseSession();
-  const esAdmin = rol === "Administrador";
+  const puedeGestionarRecursos =
+    rol === "Administrador" || rol === "Superintendente";
   const [recursos, setRecursos] = useState<RecursoCatalogoObra[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +147,7 @@ export function RecursosCatalogo({ idObra }: RecursosCatalogoProps) {
 
   return (
     <div className="space-y-4">
-      {esAdmin ? (
+      {puedeGestionarRecursos ? (
         <div className="flex justify-end">
           <button
             type="button"
@@ -139,15 +174,11 @@ export function RecursosCatalogo({ idObra }: RecursosCatalogoProps) {
               personal.map((r) => (
                 <li key={r.id_recurso} className="flex items-center justify-between px-4 py-2">
                   <span className="text-sm text-slate-700">{r.descripcion}</span>
-                  <label className="relative inline-flex cursor-pointer items-center">
-                    <input
-                      type="checkbox"
-                      checked={r.activo}
-                      onChange={(e) => cambiarActivo(r, e.target.checked)}
-                      className="peer sr-only"
-                    />
-                    <div className="peer h-5 w-9 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-emerald-600 peer-checked:after:translate-x-full"></div>
-                  </label>
+                  <EstadoRecurso
+                    activo={r.activo}
+                    editable={puedeGestionarRecursos}
+                    onCambiar={(activo) => cambiarActivo(r, activo)}
+                  />
                 </li>
               ))
             )}
@@ -164,15 +195,11 @@ export function RecursosCatalogo({ idObra }: RecursosCatalogoProps) {
               maquinaria.map((r) => (
                 <li key={r.id_recurso} className="flex items-center justify-between px-4 py-2">
                   <span className="text-sm text-slate-700">{r.descripcion}</span>
-                  <label className="relative inline-flex cursor-pointer items-center">
-                    <input
-                      type="checkbox"
-                      checked={r.activo}
-                      onChange={(e) => cambiarActivo(r, e.target.checked)}
-                      className="peer sr-only"
-                    />
-                    <div className="peer h-5 w-9 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-emerald-600 peer-checked:after:translate-x-full"></div>
-                  </label>
+                  <EstadoRecurso
+                    activo={r.activo}
+                    editable={puedeGestionarRecursos}
+                    onCambiar={(activo) => cambiarActivo(r, activo)}
+                  />
                 </li>
               ))
             )}
@@ -189,15 +216,11 @@ export function RecursosCatalogo({ idObra }: RecursosCatalogoProps) {
               equipo.map((r) => (
                 <li key={r.id_recurso} className="flex items-center justify-between px-4 py-2">
                   <span className="text-sm text-slate-700">{r.descripcion}</span>
-                  <label className="relative inline-flex cursor-pointer items-center">
-                    <input
-                      type="checkbox"
-                      checked={r.activo}
-                      onChange={(e) => cambiarActivo(r, e.target.checked)}
-                      className="peer sr-only"
-                    />
-                    <div className="peer h-5 w-9 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-emerald-600 peer-checked:after:translate-x-full"></div>
-                  </label>
+                  <EstadoRecurso
+                    activo={r.activo}
+                    editable={puedeGestionarRecursos}
+                    onCambiar={(activo) => cambiarActivo(r, activo)}
+                  />
                 </li>
               ))
             )}
@@ -205,7 +228,7 @@ export function RecursosCatalogo({ idObra }: RecursosCatalogoProps) {
         </div>
       </div>
 
-      {mostrarModal ? (
+      {puedeGestionarRecursos && mostrarModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <h2 className="text-lg font-semibold text-slate-900">Agregar Recurso</h2>
