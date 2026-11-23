@@ -41,7 +41,9 @@ const MAX_FOTOS = 6;
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_MB = 5;
 const TIPOS_FOTO = ["image/jpeg", "image/png", "image/webp"];
-const MENSAJE_MAX_FOTOS = "Máximo 6 fotografías por reporte diario";
+const MENSAJE_MAX_FOTOS = "Máximo 6 fotografías permitidas por reporte diario";
+const MENSAJE_FALLO_SUBIDA =
+  "El reporte se guardó correctamente, pero falló la subida de las fotos. Puedes reintentar subirlas desde el detalle";
 
 interface FotoSeleccionada {
   id: string;
@@ -268,12 +270,12 @@ export function ReporteFormulario({
     const archivos = Array.from(event.target.files ?? []);
     event.target.value = "";
 
+    setErrorFotos(null);
+    setAvisoFotos(null);
+
     if (archivos.length === 0) {
       return;
     }
-
-    setErrorFotos(null);
-    setAvisoFotos(null);
 
     const disponibles = MAX_FOTOS - fotos.length;
 
@@ -282,34 +284,41 @@ export function ReporteFormulario({
       return;
     }
 
-    if (archivos.length > disponibles) {
-      setAvisoFotos(MENSAJE_MAX_FOTOS);
-    }
-
-    const candidatas = archivos.slice(0, disponibles);
-    const formatoInvalido = candidatas.find(
+    const candidatas = archivos.filter((archivo) =>
+      TIPOS_FOTO.includes(archivo.type),
+    );
+    const formatosInvalidos = archivos.filter(
       (archivo) => !TIPOS_FOTO.includes(archivo.type),
     );
 
-    if (formatoInvalido) {
+    if (formatosInvalidos.length > 0) {
       setErrorFotos(
-        `"${formatoInvalido.name}" no es un formato permitido. Usa JPG, PNG o WEBP.`,
+        `Los archivos ${formatosInvalidos
+          .map((archivo) => `"${archivo.name}"`)
+          .join(", ")} no son formatos permitidos. Usa JPG, PNG o WEBP.`,
       );
-      return;
     }
 
-    const demasiadoGrande = candidatas.find(
+    if (candidatas.length > disponibles) {
+      setAvisoFotos(MENSAJE_MAX_FOTOS);
+    }
+
+    const dentroDelLimite = candidatas.slice(0, disponibles);
+    const demasiadoGrandes = dentroDelLimite.filter(
       (archivo) => archivo.size > MAX_BYTES,
     );
+    const admitidas = dentroDelLimite.filter(
+      (archivo) => archivo.size <= MAX_BYTES,
+    );
 
-    if (demasiadoGrande) {
-      setErrorFotos(
-        `"${demasiadoGrande.name}" supera el límite de ${MAX_MB} MB.`,
-      );
-      return;
+    if (demasiadoGrandes.length > 0) {
+      const mensaje = demasiadoGrandes
+        .map((archivo) => `"${archivo.name}" supera el límite de ${MAX_MB} MB`)
+        .join("; ");
+      setErrorFotos((anterior) => (anterior ? `${anterior} ${mensaje}.` : `${mensaje}.`));
     }
 
-    const nuevas = candidatas.map((archivo, indice) => {
+    const nuevas = admitidas.map((archivo, indice) => {
       const url = URL.createObjectURL(archivo);
       urlsFotos.current.add(url);
 
@@ -411,9 +420,7 @@ export function ReporteFormulario({
       onCerrar();
 
       if (falloFotos) {
-        toast.warning(
-          "El reporte se guardó, pero falló la carga de algunas fotografías. Puedes reintentar subirlas aquí",
-        );
+        toast.warning(MENSAJE_FALLO_SUBIDA);
         router.push(`/dashboard/reportes/${reporte.id_reporte}`);
       }
     } catch (error) {
@@ -712,7 +719,7 @@ export function ReporteFormulario({
               type="file"
               accept="image/jpeg,image/png,image/webp"
               multiple
-              disabled={isSubmitting || fotos.length >= MAX_FOTOS}
+              disabled={isSubmitting}
               onChange={seleccionarFotos}
               className="block w-full cursor-pointer rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:opacity-60"
             />
@@ -758,7 +765,7 @@ export function ReporteFormulario({
             ) : (
               <p className="flex items-center gap-2 text-xs text-slate-400">
                 <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-                Puedes seleccionar hasta {MAX_FOTOS} imágenes JPG, PNG o WEBP.
+                {MENSAJE_MAX_FOTOS}. Usa imágenes JPG, PNG o WEBP.
               </p>
             )}
           </section>

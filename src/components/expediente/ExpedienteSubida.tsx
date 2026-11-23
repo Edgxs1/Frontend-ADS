@@ -10,6 +10,15 @@ import type { CarpetaRepositorio } from "@/lib/repositorio";
 import type { ArchivoRepositorio } from "@/types";
 
 const TIPOS = ["Plano", "Acta", "Garantía", "Estudio", "Dictamen", "Otro"] as const;
+const MENSAJE_PDF = "Solo se permiten archivos en formato PDF (.pdf)";
+
+function esPdf(archivo: File | null | undefined): boolean {
+  return (
+    archivo != null &&
+    archivo.type === "application/pdf" &&
+    archivo.name.toLowerCase().endsWith(".pdf")
+  );
+}
 
 const esquemaArchivo = z.object({
   tipo_documento: z.enum(TIPOS, "Selecciona el tipo de documento"),
@@ -25,6 +34,10 @@ const esquemaArchivo = z.object({
       (files) =>
         !(files instanceof FileList) || (files[0]?.size ?? 0) <= 50 * 1024 * 1024,
       "El archivo no puede superar 50 MB",
+    )
+    .refine(
+      (files) => !(files instanceof FileList) || esPdf(files[0]),
+      MENSAJE_PDF,
     ),
 });
 
@@ -48,6 +61,9 @@ export function ExpedienteSubida({
     register,
     handleSubmit,
     reset,
+    clearErrors,
+    resetField,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(esquemaArchivo),
@@ -77,6 +93,8 @@ export function ExpedienteSubida({
       );
     }
   });
+
+  const registroArchivo = register("archivo");
 
   if (!carpetaPermitida) {
     return null;
@@ -127,9 +145,29 @@ export function ExpedienteSubida({
             </span>
             <input
               type="file"
-              {...register("archivo")}
+              accept="application/pdf,.pdf"
+              {...registroArchivo}
+              onChange={(evento) => {
+                clearErrors("archivo");
+                const archivo = evento.target.files?.[0];
+
+                if (archivo && !esPdf(archivo)) {
+                  evento.target.value = "";
+                  resetField("archivo");
+                  setError("archivo", {
+                    type: "validate",
+                    message: MENSAJE_PDF,
+                  });
+                  return;
+                }
+
+                void registroArchivo.onChange(evento);
+              }}
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
             />
+            <p className="mt-1 text-xs text-slate-500">
+              Formato permitido: únicamente PDF (.pdf)
+            </p>
             {errors.archivo ? (
               <span className="mt-1 block text-xs text-red-600">
                 {errors.archivo.message}

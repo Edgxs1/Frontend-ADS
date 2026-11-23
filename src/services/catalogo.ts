@@ -1,10 +1,32 @@
 import { apiFetch } from "@/lib/api";
 import type { Concepto, ConceptoConPartida, CrearConceptoInput } from "@/types";
+import type { TipoEstimacion } from "@/types/estimacion";
+
+export interface CatalogosPorObraOpciones {
+  tipoEstimacion?: TipoEstimacion;
+  fechaCorte?: string;
+  excluirIdEstimacion?: string;
+}
 
 export async function getCatalogosPorObra(
   idObra: string,
+  opciones?: CatalogosPorObraOpciones,
 ): Promise<ConceptoConPartida[]> {
-  const response = await apiFetch(`/api/v1/obras/${idObra}/catalogos`);
+  const parametros = new URLSearchParams();
+
+  if (opciones?.tipoEstimacion) {
+    parametros.set("tipo_estimacion", opciones.tipoEstimacion);
+  }
+  if (opciones?.fechaCorte) {
+    parametros.set("fecha_corte", opciones.fechaCorte);
+  }
+  if (opciones?.excluirIdEstimacion) {
+    parametros.set("excluir_id_estimacion", opciones.excluirIdEstimacion);
+  }
+
+  const consulta = parametros.toString();
+  const url = `/api/v1/obras/${idObra}/catalogos${consulta ? `?${consulta}` : ""}`;
+  const response = await apiFetch(url);
 
   if (!response.ok) {
     throw new Error("No se pudieron obtener los conceptos.");

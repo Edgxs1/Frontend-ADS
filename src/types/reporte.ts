@@ -7,17 +7,57 @@ export type EstadoEPP = "Completo" | "Incompleto" | "Suficiente" | "Insuficiente
 export type EstadoSuministro = "En existencia" | "Sin materiales";
 export type EstadoSufrimiento = "Suficiente" | "Insuficiente";
 
+export interface ReporteCondicionante {
+  condicionante?: string;
+  nombre?: string;
+  tipo?: string;
+  estatus?: string;
+  semaforo?: string;
+  frente?: string;
+}
+
+export interface ReporteProblematica {
+  fecha?: string;
+  problematica?: string;
+  acciones_a_seguir?: string;
+  status?: string;
+  solucionado?: boolean;
+}
+
+export interface ReporteInterferencia {
+  fecha?: string;
+  interferencia?: string;
+  status?: string;
+  fecha_solucion?: string;
+}
+
+export interface ReporteConceptoRelevante {
+  clave?: string;
+  concepto?: string;
+  fecha_inicio?: string;
+  fecha_termino?: string;
+  cantidad_proyecto?: number;
+  cantidad_acumulada?: number;
+  cantidad_adicional?: number;
+  unidad?: string;
+}
+
+export type ReporteRecursoUtilizado = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
+
 export interface Reporte {
   id_reporte: string;
   id_obra: string;
   id_creador: string;
   estado: EstadoReporte;
   created_at: string;
-  condicionantes: any[] | null;
-  problematica: any[] | null;
-  interferencias: any[] | null;
-  conceptos_relevantes: any[] | null;
-  recursos_utilizados: any[] | null;
+  condicionantes: ReporteCondicionante[] | null;
+  problematica: ReporteProblematica[] | null;
+  interferencias: ReporteInterferencia[] | null;
+  conceptos_relevantes: ReporteConceptoRelevante[] | null;
+  recursos_utilizados: ReporteRecursoUtilizado[] | null;
   actividades_realizadas: string | null;
   notas_relevantes: string | null;
   estado_tiempo: EstadoTiempo | null;
@@ -54,9 +94,9 @@ export interface CrearReporteInput {
   estado_equipo?: EstadoSufrimiento | null;
   avance_general: number;
   fecha_estimada_conclusion: string;
-  condicionantes: any[];
-  problematica: any[];
-  interferencias: any[];
-  conceptos_relevantes: any[];
-  recursos_utilizados: any[];
+  condicionantes: ReporteCondicionante[];
+  problematica: ReporteProblematica[];
+  interferencias: ReporteInterferencia[];
+  conceptos_relevantes: ReporteConceptoRelevante[];
+  recursos_utilizados: ReporteRecursoUtilizado[];
 }

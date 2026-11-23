@@ -244,7 +244,7 @@ export function DatosReporteDetalle({ idReporte }: DatosReporteDetalleProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {reporte.recursos_utilizados.map((r:any, idx:number)=>(
+                {reporte.recursos_utilizados.map((r, idx)=>(
                   <tr key={idx}>
                     <td className="px-4 py-2 text-slate-700">{r?.tipo ?? "—"}</td>
                     <td className="px-4 py-2 text-slate-700">{r?.descripcion ?? "—"}</td>
@@ -264,7 +264,7 @@ export function DatosReporteDetalle({ idReporte }: DatosReporteDetalleProps) {
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50"><tr><th className="px-3 py-2 text-left font-medium text-slate-500">Condicionante</th><th className="px-3 py-2 text-left font-medium text-slate-500">Estatus</th><th className="px-3 py-2 text-left font-medium text-slate-500">Semáforo</th><th className="px-3 py-2 text-left font-medium text-slate-500">Frente</th></tr></thead>
-              <tbody className="divide-y divide-slate-100 bg-white">{reporte.condicionantes.map((c:any,idx:number)=><tr key={idx}><td className="px-3 py-1 text-slate-700">{c?.condicionante??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.estatus??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.semaforo??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.frente??"—"}</td></tr>)}</tbody>
+              <tbody className="divide-y divide-slate-100 bg-white">{reporte.condicionantes.map((c,idx)=><tr key={idx}><td className="px-3 py-1 text-slate-700">{c?.condicionante??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.estatus??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.semaforo??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.frente??"—"}</td></tr>)}</tbody>
             </table>
           </div>
         ) : <p className="text-sm text-slate-500">Sin registros</p>}
@@ -276,7 +276,7 @@ export function DatosReporteDetalle({ idReporte }: DatosReporteDetalleProps) {
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50"><tr><th className="px-3 py-2 text-left font-medium text-slate-500">Fecha</th><th className="px-3 py-2 text-left font-medium text-slate-500">Problemática</th><th className="px-3 py-2 text-left font-medium text-slate-500">Acciones a seguir</th><th className="px-3 py-2 text-left font-medium text-slate-500">Status</th><th className="px-3 py-2 text-left font-medium text-slate-500">Solucionado</th></tr></thead>
-              <tbody className="divide-y divide-slate-100 bg-white">{reporte.problematica.map((p:any,idx:number)=><tr key={idx}><td className="px-3 py-1 text-slate-600">{p?.fecha??"—"}</td><td className="px-3 py-1 text-slate-700">{p?.problematica??"—"}</td><td className="px-3 py-1 text-slate-600">{p?.acciones_a_seguir??"—"}</td><td className="px-3 py-1 text-slate-600">{p?.status??"—"}</td><td className="px-3 py-1 text-slate-600">{p?.solucionado?"Sí":"No"}</td></tr>)}</tbody>
+              <tbody className="divide-y divide-slate-100 bg-white">{reporte.problematica.map((p,idx)=><tr key={idx}><td className="px-3 py-1 text-slate-600">{p?.fecha??"—"}</td><td className="px-3 py-1 text-slate-700">{p?.problematica??"—"}</td><td className="px-3 py-1 text-slate-600">{p?.acciones_a_seguir??"—"}</td><td className="px-3 py-1 text-slate-600">{p?.status??"—"}</td><td className="px-3 py-1 text-slate-600">{p?.solucionado?"Sí":"No"}</td></tr>)}</tbody>
             </table>
           </div>
         ) : <p className="text-sm text-slate-500">Sin registros</p>}
@@ -288,7 +288,7 @@ export function DatosReporteDetalle({ idReporte }: DatosReporteDetalleProps) {
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50"><tr><th className="px-3 py-2 text-left font-medium text-slate-500">Fecha</th><th className="px-3 py-2 text-left font-medium text-slate-500">Interferencia</th><th className="px-3 py-2 text-left font-medium text-slate-500">Status</th><th className="px-3 py-2 text-left font-medium text-slate-500">Fecha de solución</th></tr></thead>
-              <tbody className="divide-y divide-slate-100 bg-white">{reporte.interferencias.map((i:any,idx:number)=><tr key={idx}><td className="px-3 py-1 text-slate-600">{i?.fecha??"—"}</td><td className="px-3 py-1 text-slate-700">{i?.interferencia??"—"}</td><td className="px-3 py-1 text-slate-600">{i?.status??"—"}</td><td className="px-3 py-1 text-slate-600">{i?.fecha_solucion??"—"}</td></tr>)}</tbody>
+              <tbody className="divide-y divide-slate-100 bg-white">{reporte.interferencias.map((i,idx)=><tr key={idx}><td className="px-3 py-1 text-slate-600">{i?.fecha??"—"}</td><td className="px-3 py-1 text-slate-700">{i?.interferencia??"—"}</td><td className="px-3 py-1 text-slate-600">{i?.status??"—"}</td><td className="px-3 py-1 text-slate-600">{i?.fecha_solucion??"—"}</td></tr>)}</tbody>
             </table>
           </div>
         ) : <p className="text-sm text-slate-500">Sin registros</p>}
@@ -300,7 +300,7 @@ export function DatosReporteDetalle({ idReporte }: DatosReporteDetalleProps) {
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50"><tr><th className="px-3 py-2 text-left font-medium text-slate-500">Clave</th><th className="px-3 py-2 text-left font-medium text-slate-500">Concepto</th><th className="px-3 py-2 text-left font-medium text-slate-500">F. Inicio</th><th className="px-3 py-2 text-left font-medium text-slate-500">F. Término</th><th className="px-3 py-2 text-left font-medium text-slate-500">Cant. Proyecto</th><th className="px-3 py-2 text-left font-medium text-slate-500">Cant. Acumulada</th><th className="px-3 py-2 text-left font-medium text-slate-500">Cant. Adicional</th><th className="px-3 py-2 text-left font-medium text-slate-500">Unidad</th></tr></thead>
-              <tbody className="divide-y divide-slate-100 bg-white">{reporte.conceptos_relevantes.map((c:any,idx:number)=><tr key={idx}><td className="px-3 py-1 text-slate-700">{c?.clave??"—"}</td><td className="px-3 py-1 text-slate-700">{c?.concepto??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.fecha_inicio??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.fecha_termino??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.cantidad_proyecto??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.cantidad_acumulada??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.cantidad_adicional??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.unidad??"—"}</td></tr>)}</tbody>
+              <tbody className="divide-y divide-slate-100 bg-white">{reporte.conceptos_relevantes.map((c,idx)=><tr key={idx}><td className="px-3 py-1 text-slate-700">{c?.clave??"—"}</td><td className="px-3 py-1 text-slate-700">{c?.concepto??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.fecha_inicio??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.fecha_termino??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.cantidad_proyecto??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.cantidad_acumulada??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.cantidad_adicional??"—"}</td><td className="px-3 py-1 text-slate-600">{c?.unidad??"—"}</td></tr>)}</tbody>
             </table>
           </div>
         ) : <p className="text-sm text-slate-500">Sin registros</p>}

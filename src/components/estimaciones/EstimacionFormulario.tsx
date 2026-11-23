@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -33,7 +33,6 @@ import { getContrato } from "@/services/contrato";
 import {
   actualizarEstimacion,
   crearEstimacion,
-  getCantidadesAnteriores,
   getEstimaciones,
 } from "@/services/estimacion";
 import {
@@ -79,10 +78,31 @@ const metadataSchema = z.object({
   fecha_fianza_anticipo: fechaOpcionalSchema,
 });
 
-const conceptoSchema = z.object({
-  id_concepto: z.uuid("Selecciona un concepto"),
-  cantidad: z.number("Requerido").positive("La cantidad debe ser mayor a 0"),
-});
+const conceptoSchema = z
+  .object({
+    id_concepto: z.uuid("Selecciona un concepto"),
+    cantidad: z.number("Requerido").positive("La cantidad debe ser mayor a 0"),
+    unidad: z.string().optional(),
+    cantidad_proyecto: z.number().nonnegative().optional(),
+    precio_unitario: z.number().nonnegative().optional(),
+    cantidad_anterior: z.number().nonnegative().optional(),
+    saldo: z.number().optional(),
+  })
+  .superRefine((concepto, ctx) => {
+    const saldo = concepto.saldo;
+
+    if (
+      typeof saldo === "number" &&
+      Number.isFinite(saldo) &&
+      concepto.cantidad > saldo + 1e-9
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["cantidad"],
+        message: `La cantidad no puede exceder el saldo disponible (${formatearCantidad(saldo)}).`,
+      });
+    }
+  });
 
 const esquemaEstimacion = z
   .object({
@@ -160,17 +180,47 @@ function redondear(valor: number): number {
   return Number(valor.toFixed(2));
 }
 
+function formatearCantidad(valor: number): string {
+  return valor.toLocaleString("es-MX", { maximumFractionDigits: 2 });
+}
+
+function crearFilaVacia(): FormValues["conceptos"][number] {
+  return {
+    id_concepto: "",
+    cantidad: 0,
+    unidad: "",
+    cantidad_proyecto: 0,
+    precio_unitario: 0,
+    cantidad_anterior: 0,
+    saldo: 0,
+  };
+}
+
 function crearValoresIniciales(
   estimacion?: EstimacionDetalle | null,
 ): FormValues {
   const metadata = estimacion?.metadata_caratula ?? {};
   const conceptos =
     estimacion && estimacion.conceptos.length > 0
-      ? estimacion.conceptos.map((concepto) => ({
-          id_concepto: concepto.id_concepto,
-          cantidad: Number(concepto.cantidad_de_esta_estimacion ?? 0),
-        }))
-      : [{ id_concepto: "", cantidad: 0 }];
+      ? estimacion.conceptos.map((concepto) => {
+          const cantidadProyecto = Number(
+            concepto.cantidad_segun_proyecto ?? 0,
+          );
+          const cantidadAnterior = Number(
+            concepto.cantidad_hasta_estimacion_anterior ?? 0,
+          );
+
+          return {
+            id_concepto: concepto.id_concepto,
+            cantidad: Number(concepto.cantidad_de_esta_estimacion ?? 0),
+            unidad: concepto.unidad_medida ?? "",
+            cantidad_proyecto: cantidadProyecto,
+            precio_unitario: Number(concepto.precio_unitario_snapshot ?? 0),
+            cantidad_anterior: cantidadAnterior,
+            saldo: redondear(cantidadProyecto - cantidadAnterior),
+          };
+        })
+      : [crearFilaVacia()];
 
   const importeEstimacion = Number(estimacion?.importe_estimacion_actual ?? 0);
   const importeAmortizacion = Number(
@@ -262,56 +312,67 @@ export function EstimacionFormulario({
     () => crearValoresIniciales(estimacion),
     [estimacion],
   );
-  const fechaCorte = valoresIniciales.fecha || hoy();
-
   const [catalogos, setCatalogos] = useState<ConceptoConPartida[]>([]);
   const [contrato, setContrato] = useState<ContratoConContratista | null>(null);
   const [estimaciones, setEstimaciones] = useState<Estimacion[]>([]);
-  const [cantidadesAnteriores, setCantidadesAnteriores] = useState<
-    Map<string, number>
-  >(new Map());
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [errorDatos, setErrorDatos] = useState<string | null>(null);
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
+  const [panelAcumuladosAbierto, setPanelAcumuladosAbierto] = useState(true);
+  const tipoPrevioRef = useRef<TipoEstimacion | null>(null);
 
   const {
     register,
     control,
     handleSubmit,
-    watch,
     setValue,
     getValues,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(esquemaEstimacion),
     defaultValues: valoresIniciales,
+    mode: "onChange",
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: "conceptos",
   });
+
+  const conceptosCapturados = useWatch({ control, name: "conceptos" });
+  const tipoSeleccionado = useWatch({ control, name: "tipo" });
+  const fechaSeleccionada = useWatch({ control, name: "fecha" });
+  const amortizacionPorcentaje = useWatch({
+    control,
+    name: "amortizacion_porcentaje",
+  });
+  const retencionSfpPorcentaje = useWatch({
+    control,
+    name: "retencion_sfp_porcentaje",
+  });
+  const retencionManual = useWatch({ control, name: "retencion_manual" });
+
+  const fechaCorte = fechaSeleccionada || valoresIniciales.fecha || hoy();
 
   useEffect(() => {
     let activo = true;
 
     Promise.all([
-      getCatalogosPorObra(idObra),
-      getContrato(idObra).catch(() => null),
-      getCantidadesAnteriores(
-        idObra,
+      getCatalogosPorObra(idObra, {
+        tipoEstimacion: tipoSeleccionado,
         fechaCorte,
-        estimacion?.id_estimacion,
-      ).catch(() => new Map<string, number>()),
+        excluirIdEstimacion: estimacion?.id_estimacion,
+      }),
+      getContrato(idObra).catch(() => null),
       getEstimaciones(idObra).catch(() => []),
     ])
-      .then(([catalogosCargados, contratoCargado, cantidades, lista]) => {
+      .then(([catalogosCargados, contratoCargado, lista]) => {
         if (!activo) return;
 
         setCatalogos(catalogosCargados);
         setContrato(contratoCargado);
-        setCantidadesAnteriores(cantidades);
         setEstimaciones(lista);
+        setErrorDatos(null);
 
         if (contratoCargado && !estimacion) {
           if (!getValues("metadata_caratula.numero_contrato")) {
@@ -380,7 +441,26 @@ export function EstimacionFormulario({
     return () => {
       activo = false;
     };
-  }, [idObra, fechaCorte, estimacion, getValues, setValue]);
+  }, [
+    idObra,
+    fechaCorte,
+    tipoSeleccionado,
+    estimacion,
+    getValues,
+    setValue,
+  ]);
+
+  useEffect(() => {
+    const tipoAnterior = tipoPrevioRef.current;
+    tipoPrevioRef.current = tipoSeleccionado;
+
+    if (tipoAnterior === null || tipoAnterior === tipoSeleccionado) {
+      return;
+    }
+
+    replace([]);
+    setErrorServidor(null);
+  }, [tipoSeleccionado, replace]);
 
   const catalogoPorId = useMemo(() => {
     const mapa = new Map<string, ConceptoConPartida>();
@@ -400,12 +480,6 @@ export function EstimacionFormulario({
     return mapa;
   }, [estimacion]);
 
-  const conceptosCapturados = watch("conceptos");
-  const tipoSeleccionado = watch("tipo");
-  const amortizacionPorcentaje = watch("amortizacion_porcentaje");
-  const retencionSfpPorcentaje = watch("retencion_sfp_porcentaje");
-  const retencionManual = watch("retencion_manual");
-
   const tipoCatalogoRequerido = TIPO_CATALOGO_POR_ESTIMACION[tipoSeleccionado];
 
   const catalogosDisponibles = useMemo(
@@ -424,26 +498,62 @@ export function EstimacionFormulario({
     return mapa;
   }, [catalogosDisponibles]);
 
-  useEffect(() => {
-    const actuales = getValues("conceptos") ?? [];
+  const acumuladosPrevios = useMemo(
+    () =>
+      catalogosDisponibles.filter(
+        (concepto) =>
+          Number(concepto.cantidad_anterior ?? 0) > 0 ||
+          Number(concepto.importe_anterior ?? 0) > 0,
+      ),
+    [catalogosDisponibles],
+  );
 
-    actuales.forEach((item, index) => {
-      if (!item.id_concepto) {
-        return;
-      }
+  function aplicarConceptoFila(index: number, idConcepto: string): void {
+    const concepto = catalogoPorId.get(idConcepto);
+    const original = conceptosOriginalesPorId.get(idConcepto);
+    const cantidadProyecto = Number(
+      original?.cantidad_segun_proyecto ?? concepto?.cantidad ?? 0,
+    );
+    const cantidadAnterior = Number(
+      concepto?.cantidad_anterior ??
+        original?.cantidad_hasta_estimacion_anterior ??
+        0,
+    );
+    const precioUnitario = Number(
+      original?.precio_unitario_snapshot ?? concepto?.precio_unitario ?? 0,
+    );
+    const saldo = Number(
+      concepto?.saldo_cantidad ??
+        Math.max(cantidadProyecto - cantidadAnterior, 0),
+    );
+    const opciones = { shouldDirty: true, shouldValidate: true };
 
-      const concepto = catalogoPorId.get(item.id_concepto);
+    setValue(
+      `conceptos.${index}.unidad`,
+      original?.unidad_medida ?? concepto?.unidad_medida ?? "",
+      opciones,
+    );
+    setValue(
+      `conceptos.${index}.cantidad_proyecto`,
+      redondear(cantidadProyecto),
+      opciones,
+    );
+    setValue(
+      `conceptos.${index}.cantidad_anterior`,
+      redondear(cantidadAnterior),
+      opciones,
+    );
+    setValue(
+      `conceptos.${index}.precio_unitario`,
+      redondear(precioUnitario),
+      opciones,
+    );
+    setValue(`conceptos.${index}.saldo`, redondear(saldo), opciones);
 
-      if (concepto && concepto.tipo !== tipoCatalogoRequerido) {
-        setValue(`conceptos.${index}.id_concepto`, "", {
-          shouldValidate: false,
-        });
-        setValue(`conceptos.${index}.cantidad`, 0, {
-          shouldValidate: false,
-        });
-      }
-    });
-  }, [tipoCatalogoRequerido, catalogoPorId, getValues, setValue]);
+    if (getValues(`conceptos.${index}.id_concepto`) !== idConcepto) {
+      setValue(`conceptos.${index}.cantidad`, 0, opciones);
+    }
+  }
 
   const filas = useMemo(() => {
     return (conceptosCapturados ?? []).map((item) => {
@@ -452,25 +562,36 @@ export function EstimacionFormulario({
       const cantidad = Number(item.cantidad);
       const cantidadValida = Number.isFinite(cantidad) && cantidad > 0;
       const cantidadProyecto = Number(
-        original?.cantidad_segun_proyecto ?? concepto?.cantidad ?? 0,
+        item.cantidad_proyecto ??
+          concepto?.cantidad ??
+          original?.cantidad_segun_proyecto ??
+          0,
       );
-      const cantidadAnterior =
-        cantidadesAnteriores.get(item.id_concepto) ??
-        Number(original?.cantidad_hasta_estimacion_anterior ?? 0);
+      const cantidadAnterior = Number(
+        item.cantidad_anterior ??
+          concepto?.cantidad_anterior ??
+          original?.cantidad_hasta_estimacion_anterior ??
+          0,
+      );
       const precioUnitario = Number(
-        original?.precio_unitario_snapshot ??
+        item.precio_unitario ??
+          original?.precio_unitario_snapshot ??
           concepto?.precio_unitario ??
           0,
       );
-      const importe = cantidadValida ? cantidad * precioUnitario : 0;
-      const cantidadTotal = cantidadAnterior + (cantidadValida ? cantidad : 0);
-      const cantidadDisponible = Math.max(
-        cantidadProyecto - cantidadAnterior,
-        0,
+      const saldo = Number(
+        item.saldo ??
+          concepto?.saldo_cantidad ??
+          Math.max(cantidadProyecto - cantidadAnterior, 0),
       );
-      const excedeVolumen =
-        Boolean(concepto || original) && cantidadTotal > cantidadProyecto + 1e-9;
-      const importeMaximo = cantidadDisponible * precioUnitario;
+      const saldoDisponible = Math.max(saldo, 0);
+      const cantidadAcumulada =
+        cantidadAnterior + (cantidadValida ? cantidad : 0);
+      const saldoRestante = redondear(cantidadProyecto - cantidadAcumulada);
+      const importe = cantidadValida ? redondear(cantidad * precioUnitario) : 0;
+      const excedeSaldo =
+        Boolean(concepto || original) && cantidad > saldoDisponible + 1e-9;
+      const importeMaximo = saldoDisponible * precioUnitario;
       const excedeImporte =
         Boolean(concepto || original) && importe > importeMaximo + 1e-9;
 
@@ -478,24 +599,27 @@ export function EstimacionFormulario({
         idConcepto: item.id_concepto,
         clave: original?.clave ?? concepto?.clave ?? "—",
         descripcion: original?.descripcion ?? concepto?.descripcion ?? "—",
-        unidad: original?.unidad_medida ?? concepto?.unidad_medida ?? "—",
+        unidad:
+          item.unidad ||
+          original?.unidad_medida ||
+          concepto?.unidad_medida ||
+          "—",
         cantidad,
         cantidadValida,
         cantidadProyecto,
         cantidadAnterior,
-        cantidadDisponible,
+        cantidadAcumulada,
+        saldo,
+        saldoDisponible,
+        saldoRestante,
         precioUnitario,
         importe,
-        excedeVolumen,
+        excedeSaldo,
+        excedeVolumen: excedeSaldo,
         excedeImporte,
       };
     });
-  }, [
-    conceptosCapturados,
-    catalogoPorId,
-    conceptosOriginalesPorId,
-    cantidadesAnteriores,
-  ]);
+  }, [conceptosCapturados, catalogoPorId, conceptosOriginalesPorId]);
 
   const hayErroresVolumen = filas.some(
     (fila) => fila.excedeVolumen || fila.excedeImporte,
@@ -993,7 +1117,7 @@ export function EstimacionFormulario({
             size="sm"
             className="gap-1.5"
             disabled={cargandoDatos || catalogosDisponibles.length === 0}
-            onClick={() => append({ id_concepto: "", cantidad: 0 })}
+            onClick={() => append(crearFilaVacia())}
           >
             <Plus className="h-4 w-4" />
             Agregar concepto
@@ -1036,7 +1160,7 @@ export function EstimacionFormulario({
           ) : null}
 
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[980px] text-sm">
+            <table className="w-full min-w-[1240px] text-sm">
               <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-3 py-2 font-semibold">Concepto</th>
@@ -1052,6 +1176,12 @@ export function EstimacionFormulario({
                   <th className="px-3 py-2 text-right font-semibold">
                     Cant. esta estimación
                   </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    Cant. acumulada
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    Saldo restante
+                  </th>
                   <th className="px-3 py-2 text-right font-semibold">P.U.</th>
                   <th className="px-3 py-2 text-right font-semibold">
                     Importe
@@ -1064,13 +1194,25 @@ export function EstimacionFormulario({
                   const fila = filas[index];
                   const item = conceptosCapturados?.[index];
                   const idSeleccionado = item?.id_concepto ?? "";
+                  const registroConcepto = register(
+                    `conceptos.${index}.id_concepto`,
+                  );
+                  const mensajeCantidad =
+                    errors.conceptos?.[index]?.cantidad?.message ??
+                    (fila?.excedeSaldo
+                      ? `No puede exceder el saldo disponible (${formatearCantidad(fila.saldoDisponible)}).`
+                      : null);
 
                   return (
                     <tr key={field.id} className="align-top">
                       <td className="px-3 py-3">
                         <select
                           id={`concepto-${index}`}
-                          {...register(`conceptos.${index}.id_concepto`)}
+                          {...registroConcepto}
+                          onChange={(evento) => {
+                            void registroConcepto.onChange(evento);
+                            aplicarConceptoFila(index, evento.target.value);
+                          }}
                           className="flex h-9 w-full min-w-[240px] rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus-visible:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400/40"
                         >
                           <option value="">Selecciona un concepto</option>
@@ -1078,6 +1220,11 @@ export function EstimacionFormulario({
                             <option
                               key={concepto.id_concepto}
                               value={concepto.id_concepto}
+                              disabled={conceptosCapturados.some(
+                                (otro, otroIndex) =>
+                                  otroIndex !== index &&
+                                  otro.id_concepto === concepto.id_concepto,
+                              )}
                             >
                               {concepto.clave} — {concepto.descripcion}
                             </option>
@@ -1086,7 +1233,14 @@ export function EstimacionFormulario({
                           !catalogoDisponiblePorId.has(idSeleccionado) &&
                           conceptosOriginalesPorId.has(idSeleccionado) &&
                           !catalogoPorId.has(idSeleccionado) ? (
-                            <option value={idSeleccionado}>
+                            <option
+                              value={idSeleccionado}
+                              disabled={conceptosCapturados.some(
+                                (otro, otroIndex) =>
+                                  otroIndex !== index &&
+                                  otro.id_concepto === idSeleccionado,
+                              )}
+                            >
                               {conceptosOriginalesPorId.get(idSeleccionado)
                                 ?.clave ?? idSeleccionado}{" "}
                               — concepto original
@@ -1108,12 +1262,14 @@ export function EstimacionFormulario({
                       </td>
 
                       <td className="px-3 py-3 text-right text-slate-600">
-                        {fila ? fila.cantidadProyecto.toLocaleString("es-MX") : "—"}
+                        {fila
+                          ? formatearCantidad(fila.cantidadProyecto)
+                          : "—"}
                       </td>
 
                       <td className="px-3 py-3 text-right text-slate-600">
                         {fila
-                          ? fila.cantidadAnterior.toLocaleString("es-MX")
+                          ? formatearCantidad(fila.cantidadAnterior)
                           : "—"}
                       </td>
 
@@ -1122,21 +1278,31 @@ export function EstimacionFormulario({
                           id={`cantidad-${index}`}
                           type="number"
                           step="0.01"
-                          min="0"
-                          max={fila?.cantidadDisponible}
-                          aria-invalid={
-                            Boolean(fila?.excedeVolumen || fila?.excedeImporte)
-                          }
+                          min="0.01"
+                          max={fila?.saldoDisponible}
+                          aria-invalid={Boolean(
+                            fila?.excedeSaldo || fila?.excedeImporte,
+                          )}
                           className="ml-auto w-32 text-right"
                           {...register(`conceptos.${index}.cantidad`, {
                             valueAsNumber: true,
                           })}
                         />
-                        {errors.conceptos?.[index]?.cantidad ? (
+                        {mensajeCantidad ? (
                           <p className="mt-1 text-xs text-red-600">
-                            {errors.conceptos[index]?.cantidad?.message}
+                            {mensajeCantidad}
                           </p>
                         ) : null}
+                      </td>
+
+                      <td className="px-3 py-3 text-right text-slate-600">
+                        {fila
+                          ? formatearCantidad(fila.cantidadAcumulada)
+                          : "—"}
+                      </td>
+
+                      <td className="px-3 py-3 text-right text-slate-600">
+                        {fila ? formatearCantidad(fila.saldoRestante) : "—"}
                       </td>
 
                       <td className="px-3 py-3 text-right text-slate-600">
@@ -1165,6 +1331,129 @@ export function EstimacionFormulario({
                 })}
               </tbody>
             </table>
+          </div>
+
+          <div className="rounded-xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() =>
+                setPanelAcumuladosAbierto((abierto) => !abierto)
+              }
+              className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-slate-50"
+            >
+              <span>
+                <span className="block text-sm font-semibold text-slate-900">
+                  Estado de Acumulados Previos del Catálogo
+                </span>
+                <span className="block text-xs text-slate-500">
+                  Avance estimado del catálogo &quot;{tipoCatalogoRequerido}&quot;
+                  antes de esta estimación.
+                </span>
+              </span>
+              <span className="shrink-0 text-xs font-medium text-slate-500">
+                {panelAcumuladosAbierto ? "Ocultar" : "Mostrar"}
+              </span>
+            </button>
+
+            {panelAcumuladosAbierto ? (
+              <div className="border-t border-slate-200 p-4">
+                {acumuladosPrevios.length === 0 ? (
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+                    Aún no hay cantidades estimadas previamente para este tipo
+                    de catálogo
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full min-w-[1000px] text-sm">
+                      <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold">Clave</th>
+                          <th className="px-3 py-2 font-semibold">Concepto</th>
+                          <th className="px-3 py-2 text-center font-semibold">
+                            Unidad
+                          </th>
+                          <th className="px-3 py-2 text-right font-semibold">
+                            Cant. Proyecto
+                          </th>
+                          <th className="px-3 py-2 text-right font-semibold">
+                            Cant. Estimada Anterior
+                          </th>
+                          <th className="px-3 py-2 text-right font-semibold">
+                            Saldo por Estimar
+                          </th>
+                          <th className="px-3 py-2 text-right font-semibold">
+                            % Avance Estimado
+                          </th>
+                          <th className="px-3 py-2 text-right font-semibold">
+                            Importe Acumulado Anterior
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {acumuladosPrevios.map((concepto) => {
+                          const cantidadProyecto = Number(concepto.cantidad ?? 0);
+                          const cantidadAnterior = Number(
+                            concepto.cantidad_anterior ?? 0,
+                          );
+                          const saldo = Number(
+                            concepto.saldo_cantidad ??
+                              Math.max(cantidadProyecto - cantidadAnterior, 0),
+                          );
+                          const importeAnterior = Number(
+                            concepto.importe_anterior ?? 0,
+                          );
+                          const porcentaje =
+                            cantidadProyecto > 0
+                              ? (cantidadAnterior / cantidadProyecto) * 100
+                              : 0;
+
+                          return (
+                            <tr key={concepto.id_concepto} className="align-top">
+                              <td className="px-3 py-2 font-medium text-slate-900">
+                                {concepto.clave}
+                              </td>
+                              <td className="px-3 py-2 text-slate-600">
+                                {concepto.descripcion}
+                              </td>
+                              <td className="px-3 py-2 text-center text-slate-600">
+                                {concepto.unidad_medida}
+                              </td>
+                              <td className="px-3 py-2 text-right text-slate-600">
+                                {formatearCantidad(cantidadProyecto)}
+                              </td>
+                              <td className="px-3 py-2 text-right text-slate-600">
+                                {formatearCantidad(cantidadAnterior)}
+                              </td>
+                              <td className="px-3 py-2 text-right text-slate-600">
+                                {formatearCantidad(saldo)}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <div className="ml-auto flex w-28 items-center gap-2">
+                                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                      className="h-full rounded-full bg-slate-500"
+                                      style={{
+                                        width: `${Math.min(Math.max(porcentaje, 0), 100)}%`,
+                                      }}
+                                    />
+                                  </div>
+                                  <span className="w-12 text-right text-xs text-slate-600">
+                                    {porcentaje.toFixed(1)}%
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 text-right font-medium text-slate-900">
+                                {formatearMoneda(importeAnterior)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
 
           {filas.some((fila) => fila.excedeVolumen || fila.excedeImporte) ? (

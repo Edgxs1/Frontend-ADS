@@ -48,10 +48,7 @@ async function obtenerObrasAsignadas(): Promise<Obra[]> {
 export function ObraProvider({ children }: { children: ReactNode }) {
   const { session, loading, usuario } = useSupabaseSession();
   const idUsuario =
-    (usuario as any)?.id_usuario ??
-    (usuario as any)?.id ??
-    session?.user?.id ??
-    null;
+    usuario?.id_usuario ?? session?.user?.id ?? null;
   const [datos, setDatos] = useState<DatosObras | null>(null);
   const [seleccionId, setSeleccionId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -116,17 +113,22 @@ export function ObraProvider({ children }: { children: ReactNode }) {
     const elegida =
       obras.find((obra) => obra.id_obra === seleccionId) ?? obras[0];
 
-    if (elegida && elegida.id_obra !== seleccionId) {
-      setSeleccionId(elegida.id_obra);
-      try {
-        if (typeof window !== "undefined") {
-          localStorage.setItem("obra_seleccionada", elegida.id_obra);
-        }
-      } catch {}
-    }
-
     return { id_obra: elegida.id_obra, nombre: elegida.nombre };
   }, [obras, seleccionId]);
+
+  const idObraActiva = obraActiva?.id_obra ?? null;
+
+  useEffect(() => {
+    if (!idObraActiva || idObraActiva === seleccionId) {
+      return;
+    }
+
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("obra_seleccionada", idObraActiva);
+      }
+    } catch {}
+  }, [idObraActiva, seleccionId]);
 
   const seleccionarObra = useCallback((idObra: string) => {
     setSeleccionId(idObra);

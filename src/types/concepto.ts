@@ -17,6 +17,9 @@ export interface Concepto {
 
 export interface ConceptoConPartida extends Concepto {
   partida_clave: string | null;
+  cantidad_anterior?: number;
+  importe_anterior?: number;
+  saldo_cantidad?: number;
 }
 
 export interface CrearConceptoInput {
